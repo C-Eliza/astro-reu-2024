@@ -30,9 +30,11 @@ def line_broadening(temp, nu_0, nu):
     # raw_phi creates the gaussian profile without the constant
     # in front
     raw_phi = np.exp( -(c.m_p * c.c**2) / (2 * c.k_B * temp) * (nu - nu_0)**2 / nu_0**2 )
-    print(raw_phi)
     phi = c.c / nu_0 * (c.m_p / (2 * np.pi * c.k_B * temp))**(1/2) * raw_phi
     return(phi.to(u.ns))
+
+def freq_to_velocity(nu_0,nu):
+    return (c.c * (nu-nu_0) / nu_0).to(u.km/u.s)
 
 class HIIRegion:
     '''
@@ -50,9 +52,11 @@ class HIIRegion:
 def main():
     temp = 80 * u.K
     nu_0 = 6 * u.GHz
-    nu = np.linspace(0.99*nu_0,1.01*nu_0)
+    nu = np.linspace(0.99999*nu_0,1.00001*nu_0)
     phi = line_broadening(temp,nu_0,nu)
-    print(phi)
+    velocities = freq_to_velocity(nu_0,nu)
+    print(sum(phi*(nu[1]-nu[0])).to(u.s/u.s))
+    #print(phi)
     #plt.plot(nu,phi)
     #plt.show()
 
