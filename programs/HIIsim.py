@@ -34,7 +34,51 @@ def line_broadening(temp, nu_0, nu):
     return(phi.to(u.ns))
 
 def freq_to_velocity(nu_0,nu):
+    '''
+    Takes in the laboratory frame frequency of emission and
+    returns the doppler shift in kilometers per second.
+    '''
     return (c.c * (nu-nu_0) / nu_0).to(u.km/u.s)
+
+def emission_measure(density,depth):
+    '''
+    density -- Average electron density of an HII region
+    along a path
+    depth   -- Distance from front to back of an HII region,
+    assuming constant density
+
+    The depth given should be a matrix, as the emission measure
+    returned should be a matrix
+
+    Takes in the average density of an HII region and the 
+    total distance from front to back of an observed point
+    on the HII region.
+
+    This function uses equation 4.57 from the NRAO web textbook
+
+    The emission measure is then returned
+    '''
+    return((density**2*depth).to(u.pc*u.cm**-6))
+
+def ff_opacity(temp,nu,em):
+    '''
+    temp -- Temperature of the region, typically in Kelvin
+    nu   -- Frequency which the opacity is being calculated for
+    em   -- Emission measure of the position being measured
+
+    The incoming nu is a range of frequencies, em is a matrix,
+    and a 'data cube' of free-free opacity is returned
+
+    This function uses equation 4.60 from the NRAO web textbook
+
+    This function returns the free-free opacity of a region with
+    a given temperature and emission measure for a frequency.
+    '''
+
+    # Moves frequency to the third axis so the cube is created
+    nu = nu[None,None,:]
+
+    return((3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nu/u.GHz)**-2.1 * (em/(u.pc*u.cm**-6))).to(u.dimensionless_unscaled))
 
 class HIIRegion:
     '''
