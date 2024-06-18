@@ -2,7 +2,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as c
 import matplotlib.pyplot as plt
-import matplotlib as mpl
+import matplotlib.ticker as ticker
 
 '''
 Future plans for this program:
@@ -120,19 +120,42 @@ def main():
     temp = 1e4 * u.K
     nu_0 = 6 * u.GHz
     n_e = 1000 * u.cm**-3
-    nu = np.linspace(0.99999*nu_0,1.00001*nu_0)
+    nu = np.linspace(0.9999*nu_0,1.0001*nu_0)
     nu_1 = np.linspace(4,10,12) * u.GHz
     phi = line_broadening(temp,nu_0,nu)
     velocities = freq_to_velocity(nu_0,nu)
+
+    # Working on the free-free opacity
     depth, stepper = sphere_depth_gen(1 * u.AU, 2.4 * u.AU, 49)
     em = emission_measure(n_e,depth)
     tau = ff_opacity(temp,nu_1,em)
+
+    # Plotting the thermal broadening
+    plt.plot(velocities,phi)
+    plt.title('Thermal broadening at 10000K in 6GHz')
+    plt.xlabel("Doppler shift (km/s)")
+    plt.ylabel("Distribution (ns?)")
+
+    '''
+    # Plotting the optical depth
     fig = plt.figure()
-    ax1 = fig.add_subplot(211)
-    ax1.imshow(tau[:,:,0], interpolation='nearest',vmax=np.nanmax(tau))
-    ax2 = fig.add_subplot(212)
-    ax2.imshow(tau[:,:,3], interpolation='nearest',vmax=np.nanmax(tau))
+    fig.suptitle('Optical depths of free-free emission')
+
+    ax1 = fig.add_subplot(121)
+    ax1.set_title('4 GHz')
+    ax1.xaxis.set_major_locator(ticker.NullLocator())
+    ax1.yaxis.set_major_locator(ticker.NullLocator())
+    im = ax1.imshow(tau[:,:,0], interpolation='nearest',vmax=np.nanmax(tau))
+
+    ax2 = fig.add_subplot(122)
+    ax2.set_title('6 GHz')
+    ax2.xaxis.set_major_locator(ticker.NullLocator())
+    ax2.yaxis.set_major_locator(ticker.NullLocator())
+    im = ax2.imshow(tau[:,:,3], interpolation='nearest',vmax=np.nanmax(tau))
+
     fig.canvas.draw()
+    plt.colorbar(im, ax=[ax1,ax2],fraction=0.046, pad=0.04,shrink=0.8)
+    '''
     plt.show()
 
 if __name__ == "__main__":
