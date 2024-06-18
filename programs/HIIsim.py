@@ -2,6 +2,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as c
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 '''
 Future plans for this program:
@@ -74,11 +75,32 @@ def ff_opacity(temp,nu,em):
     This function returns the free-free opacity of a region with
     a given temperature and emission measure for a frequency.
     '''
-
     # Moves frequency to the third axis so the cube is created
-    nu = nu[None,None,:]
+    nu = nu#[None,None,:]
 
     return((3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nu/u.GHz)**-2.1 * (em/(u.pc*u.cm**-6))).to(u.dimensionless_unscaled))
+
+def sphere_depth_gen(radius,length,steps):
+    '''
+    radius -- Radius of the sphere being used, can be visual
+    radius or physical radius
+    length -- Size of the image, must be same unit as radius
+    steps  -- The number of pixels in the x and y directions
+
+    This function takes the three listed constants and returns
+    a matrix of the distance from to the front to back at each
+    of the pixels, using the center of the pixel to calculate it.
+
+    The distance calculated is based off if the object is a
+    perfect sphere.
+    '''
+    #Delta between each pixel
+    pixel_dist = length / steps
+
+    midpoint = length / 2 #Where there is a depth of the diameter
+    stepper = np.array([np.linspace(0,length,steps) + pixel_dist/2]) * length.unit
+    depth = 2*np.sqrt(radius**2 - (midpoint-stepper)**2 - (midpoint-stepper.T)**2)
+    return(depth,stepper)
 
 class HIIRegion:
     '''
@@ -96,13 +118,18 @@ class HIIRegion:
 def main():
     temp = 80 * u.K
     nu_0 = 6 * u.GHz
+    n_e = 1000 * u.cm**-3
     nu = np.linspace(0.99999*nu_0,1.00001*nu_0)
     phi = line_broadening(temp,nu_0,nu)
     velocities = freq_to_velocity(nu_0,nu)
-    print(sum(phi*(nu[1]-nu[0])).to(u.s/u.s))
-    #print(phi)
-    #plt.plot(nu,phi)
-    #plt.show()
+    depth, stepper = sphere_depth_gen(1 * u.AU, 2.4 * u.AU, 49)
+    em = emission_measure(n_e,depth)
+    tau = ff_opacity(temp,nu_0,em)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.imshow(tau.value, interpolation='nearest')
+    fig.canvas.draw()
+    plt.show()
 
 if __name__ == "__main__":
     main()
