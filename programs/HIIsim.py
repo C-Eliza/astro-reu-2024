@@ -76,9 +76,10 @@ def ff_opacity(temp,nu,em):
     a given temperature and emission measure for a frequency.
     '''
     # Moves frequency to the third axis so the cube is created
-    nu = nu#[None,None,:]
+    nutrick = np.reshape(nu,(1,1,len(nu)))
+    emtrick = np.reshape(em,(em.shape[0],em.shape[1],1))
 
-    return((3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nu/u.GHz)**-2.1 * (em/(u.pc*u.cm**-6))).to(u.dimensionless_unscaled))
+    return((3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nutrick/u.GHz)**-2.1 * (emtrick/(u.pc*u.cm**-6))).to(u.dimensionless_unscaled))
 
 def sphere_depth_gen(radius,length,steps):
     '''
@@ -116,18 +117,21 @@ class HIIRegion:
         self.density = density
 
 def main():
-    temp = 80 * u.K
+    temp = 1e4 * u.K
     nu_0 = 6 * u.GHz
     n_e = 1000 * u.cm**-3
     nu = np.linspace(0.99999*nu_0,1.00001*nu_0)
+    nu_1 = np.linspace(4,10,12) * u.GHz
     phi = line_broadening(temp,nu_0,nu)
     velocities = freq_to_velocity(nu_0,nu)
     depth, stepper = sphere_depth_gen(1 * u.AU, 2.4 * u.AU, 49)
     em = emission_measure(n_e,depth)
-    tau = ff_opacity(temp,nu_0,em)
+    tau = ff_opacity(temp,nu_1,em)
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.imshow(tau.value, interpolation='nearest')
+    ax1 = fig.add_subplot(211)
+    ax1.imshow(tau[:,:,0], interpolation='nearest',vmax=np.nanmax(tau))
+    ax2 = fig.add_subplot(212)
+    ax2.imshow(tau[:,:,3], interpolation='nearest',vmax=np.nanmax(tau))
     fig.canvas.draw()
     plt.show()
 
