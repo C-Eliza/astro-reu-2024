@@ -103,6 +103,42 @@ def sphere_depth_gen(radius,length,steps):
     depth = 2*np.sqrt(radius**2 - (midpoint-stepper)**2 - (midpoint-stepper.T)**2)
     return(depth,stepper)
 
+def temp_brightness(depth,temp):
+    '''
+    depth -- The optical depth 'data cube' to have a brightness
+    temperature found for
+    temp  -- Electron temperature
+
+    Returns the brightness temperature for a given optical depth
+    and electron temp
+    '''
+    return(temp * (1-np.exp(depth)))
+
+def intensity(brighttemp,freq):
+    '''
+    brighttemp -- Brightness temperature 'data cube'
+    freq       -- Frequencies for each slice of brighttemp
+
+    This function takes the brightness temperature and the used
+    frequency to calculate the intensity of the emission via
+    equation 2.33 from the NRAO textbook
+    '''
+    return(2 * c.k * brighttemp * freq**2 / c.c**2)
+
+def flux_density(intensity,dist,delta):
+    '''
+    intensity -- Intensity 'data cube'
+    dist      -- Distance from Earth the HII region is
+    delta     -- The physical size of each pixel
+
+    This function calculates the solid angle subtended by each
+    pixel then uses that to create a flux density data cube
+
+    Taken from equation 2.10 of the NRAO textbook
+    '''
+    solidangle = delta**2 / dist**2
+    return(intensity * solidangle)
+
 class HIIRegion:
     '''
     Purpose of structure is to be a fully homogenous,
@@ -130,13 +166,13 @@ def main():
     em = emission_measure(n_e,depth)
     tau = ff_opacity(temp,nu_1,em)
 
+    '''
     # Plotting the thermal broadening
     plt.plot(velocities,phi)
     plt.title('Thermal broadening at 10000K in 6GHz')
     plt.xlabel("Doppler shift (km/s)")
     plt.ylabel("Distribution (ns?)")
 
-    '''
     # Plotting the optical depth
     fig = plt.figure()
     fig.suptitle('Optical depths of free-free emission')
