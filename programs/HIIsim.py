@@ -3,6 +3,7 @@ import astropy.units as u
 import astropy.constants as c
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import scipy.ndimage as ndi
 
 '''
 Future plans for this program:
@@ -100,8 +101,8 @@ def sphere_depth_gen(radius,length,steps):
 
     midpoint = length / 2 #Where there is a depth of the diameter
     stepper = np.array([np.linspace(0,length,steps) + pixel_dist/2]) * length.unit
-    depth = 2*np.sqrt(radius**2 - (midpoint-stepper)**2 - (midpoint-stepper.T)**2)
-    return(depth,stepper)
+    depth = np.nan_to_num(2*np.sqrt(radius**2 - (midpoint-stepper)**2 - (midpoint-stepper.T)**2))
+    return(depth)
 
 def temp_brightness(depth,temp):
     '''
@@ -125,7 +126,7 @@ def intensity(brighttemp,freq):
     '''
     return(2 * c.k * brighttemp * freq**2 / c.c**2)
 
-def flux_density(intensity,dist,delta):
+def flux_density_old(intensity,dist,delta):
     '''
     intensity -- Intensity 'data cube'
     dist      -- Distance from Earth the HII region is
@@ -139,30 +140,89 @@ def flux_density(intensity,dist,delta):
     solidangle = delta**2 / dist**2
     return(intensity * solidangle)
 
+def flux_density(intensity,delta):
+    '''
+    intensity -- Intensity 'data cube'
+    delta     -- Width of each pixel in arcseconds
+    
+    Calculates flux density from intensity via equation 2.10
+    '''
+    return(intensity * delta**2 / u.rad**2)
+
+def blurring_agent(flux_density,radius):
+    '''
+    flux_density -- Data cube of true flux density values
+    radius       -- The radius (int) of the smoothing for the
+    image to use to simulate a radio observation
+
+    This function simply cause spatial smoothing in each frame
+    '''
+    return(ndi.gaussian_filter(flux_density,[radius,radius,0]))
+
 class HIIRegion:
     '''
     Purpose of structure is to be a fully homogenous,
     isothermal, spherical HII region. 
 
-    When initialized, a radius, temperature, and density
-    must be passed to it.
+    When initialized, a radius, temperature, density,
+    and distance from Earth must be passed to it.
     '''
-    def __init__(self, radius, temperature, density):
+    def __init__(self, radius, temperature, density, distance):
         self.radius = radius
         self.temperature = temperature
         self.density = density
+        self.distance = distance
+
+class Telescope:
+    '''
+    Purpose is to hold all the information about a telescope
+    that one needs in order to generate a fake observation.
+
+    When initialized, it takes in a pixel width in arcseconds
+    and the width of an image it generates in pixels. It also
+    takes in a beam area (pix) to simulate gaussian effects.
+    '''
+    def __init__(self, pixwid, imwid, beamarea):
+        self.pixwid = pixwid
+        self.imwid = imwid
+        self.beamarea = beamarea
+
+    def observe(self,hiiregion,nu):
+        '''
+        hiiregion -- An HII region to be observed by the telescope
+        nu        -- A collection of frequencies to have images
+        produced for
+
+        The observe function takes in an HII region and produces a
+        mock observation of it based on the attributes of the 
+        telescope and the region. A range of frequencies must also
+        be provided to create the observation.
+        '''
+        depthmap = sphere_depth_gen(hiiregion.radius,hiiregion.distance*self.imwid*self.pixwid/u.rad,self.imwid)
+        em = emission_measure(hiiregion.density,depthmap)
+        tau = ff_opacity(hiiregion.temperature,nu,em)
+        tempbright = temp_brightness(tau,hiiregion.temperature)
+        inten = intensity(tempbright,nu)
+        flux = flux_density(inten,self.pixwid)
+        observation = blurring_agent(flux,np.trunc(np.sqrt(beamarea/u.pix)))
+        return(observation)
 
 def main():
+    # Creating a test region
+    radius = 1 * u.pc
     temp = 1e4 * u.K
-    nu_0 = 6 * u.GHz
     n_e = 1000 * u.cm**-3
+    dist = 1e4 * u.pc
+    testregion = HIIRegion(radius, temp, n_e, dist)
+
+    nu_0 = 6 * u.GHz
     nu = np.linspace(0.9999*nu_0,1.0001*nu_0)
     nu_1 = np.linspace(4,10,12) * u.GHz
     phi = line_broadening(temp,nu_0,nu)
     velocities = freq_to_velocity(nu_0,nu)
 
     # Working on the free-free opacity
-    depth, stepper = sphere_depth_gen(1 * u.AU, 2.4 * u.AU, 49)
+    depth = sphere_depth_gen(1 * u.AU, 2.4 * u.AU, 49)
     em = emission_measure(n_e,depth)
     tau = ff_opacity(temp,nu_1,em)
 
