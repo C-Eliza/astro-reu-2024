@@ -113,7 +113,7 @@ def temp_brightness(depth,temp):
     Returns the brightness temperature for a given optical depth
     and electron temp
     '''
-    return(temp * (1-np.exp(depth)))
+    return(temp * (1-np.exp(-depth)))
 
 def intensity(brighttemp,freq):
     '''
@@ -124,7 +124,7 @@ def intensity(brighttemp,freq):
     frequency to calculate the intensity of the emission via
     equation 2.33 from the NRAO textbook
     '''
-    return(2 * c.k * brighttemp * freq**2 / c.c**2)
+    return(2 * c.k_B * brighttemp * freq**2 / c.c**2)
 
 def flux_density_old(intensity,dist,delta):
     '''
@@ -204,8 +204,8 @@ class Telescope:
         tempbright = temp_brightness(tau,hiiregion.temperature)
         inten = intensity(tempbright,nu)
         flux = flux_density(inten,self.pixwid)
-        observation = blurring_agent(flux,np.trunc(np.sqrt(beamarea/u.pix)))
-        return(observation)
+        observation = blurring_agent(flux,np.trunc(np.sqrt(self.beamarea/u.pix))) * flux.unit
+        return(observation.to(u.Jy))
 
 def main():
     # Creating a test region
@@ -215,16 +215,25 @@ def main():
     dist = 1e4 * u.pc
     testregion = HIIRegion(radius, temp, n_e, dist)
 
+    # Creating a test telescope
+    pixwid = 1 * u.arcsec
+    imwid = 100
+    beamarea = 1 * u.pix
+    testtelescope = Telescope(pixwid,imwid,beamarea)
+
+    # Generating a test observation
     nu_0 = 6 * u.GHz
-    nu = np.linspace(0.9999*nu_0,1.0001*nu_0)
     nu_1 = np.linspace(4,10,12) * u.GHz
-    phi = line_broadening(temp,nu_0,nu)
-    velocities = freq_to_velocity(nu_0,nu)
+    observation = testtelescope.observe(testregion,nu_1)
+
+    #nu = np.linspace(0.9999*nu_0,1.0001*nu_0)
+    #phi = line_broadening(temp,nu_0,nu)
+    #velocities = freq_to_velocity(nu_0,nu)
 
     # Working on the free-free opacity
-    depth = sphere_depth_gen(1 * u.AU, 2.4 * u.AU, 49)
-    em = emission_measure(n_e,depth)
-    tau = ff_opacity(temp,nu_1,em)
+    #depth = sphere_depth_gen(1 * u.AU, 2.4 * u.AU, 49)
+    #em = emission_measure(n_e,depth)
+    #tau = ff_opacity(temp,nu_1,em)
 
     '''
     # Plotting the thermal broadening
@@ -232,26 +241,26 @@ def main():
     plt.title('Thermal broadening at 10000K in 6GHz')
     plt.xlabel("Doppler shift (km/s)")
     plt.ylabel("Distribution (ns?)")
+    '''
 
-    # Plotting the optical depth
+    # Showing test observations
     fig = plt.figure()
-    fig.suptitle('Optical depths of free-free emission')
+    fig.suptitle('Test observation of HII region')
 
     ax1 = fig.add_subplot(121)
     ax1.set_title('4 GHz')
     ax1.xaxis.set_major_locator(ticker.NullLocator())
     ax1.yaxis.set_major_locator(ticker.NullLocator())
-    im = ax1.imshow(tau[:,:,0], interpolation='nearest',vmax=np.nanmax(tau))
+    im = ax1.imshow(observation[:,:,0].value, interpolation='nearest',vmax=np.max(observation.value))
 
     ax2 = fig.add_subplot(122)
     ax2.set_title('6 GHz')
     ax2.xaxis.set_major_locator(ticker.NullLocator())
     ax2.yaxis.set_major_locator(ticker.NullLocator())
-    im = ax2.imshow(tau[:,:,3], interpolation='nearest',vmax=np.nanmax(tau))
+    im = ax2.imshow(observation[:,:,3].value, interpolation='nearest',vmax=np.max(observation.value))
 
     fig.canvas.draw()
     plt.colorbar(im, ax=[ax1,ax2],fraction=0.046, pad=0.04,shrink=0.8)
-    '''
     plt.show()
 
 if __name__ == "__main__":
