@@ -1,25 +1,13 @@
+# Eliza Canales -- Summer 2024
+# The ultimate purpose of this code is to generate a fits
+# file of an HII region with turbulence applied
+
 import numpy as np
 import astropy.units as u
 import astropy.constants as c
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import scipy.ndimage as ndi
-
-'''
-Future plans for this program:
-
-In the HII Region class for RRLs:
--Add transition frequencies for each transition
--Add absorption rates for each transition 
---Use equation 7.32 from NRAO for gaussian
--Add spontaneous emission rates for each transition
-
-When these are added, computationally find the equibrium
-densities and transition rates for each energy level
-
-For the continuum:
--Understand 
-'''
 
 def line_broadening(temp, nu_0, nu):
     '''
@@ -33,7 +21,7 @@ def line_broadening(temp, nu_0, nu):
     # in front
     raw_phi = np.exp( -(c.m_p * c.c**2) / (2 * c.k_B * temp) * (nu - nu_0)**2 / nu_0**2 )
     phi = c.c / nu_0 * (c.m_p / (2 * np.pi * c.k_B * temp))**(1/2) * raw_phi
-    return(phi.to(u.ns))
+    return phi
 
 def thermal_fwhm(temp, nu_0):
     '''
@@ -42,14 +30,14 @@ def thermal_fwhm(temp, nu_0):
 
     Returns FWHM of thermal broadening
     '''
-    return(np.sqrt(8*np.log(2)*c.k_B/u.c**2) * np.sqrt(temp/c.m_p) * nu_0)
+    return np.sqrt(8*np.log(2)*c.k_B/u.c**2) * np.sqrt(temp/c.m_p) * nu_0
 
 def freq_to_velocity(nu_0,nu):
     '''
     Takes in the laboratory frame frequency of emission and
     returns the doppler shift in kilometers per second.
     '''
-    return (c.c * (nu-nu_0) / nu_0).to(u.km/u.s)
+    return c.c * (nu-nu_0) / nu_0
 
 def emission_measure(density,depth):
     '''
@@ -69,7 +57,7 @@ def emission_measure(density,depth):
 
     The emission measure is then returned
     '''
-    return((density**2*depth).to(u.pc*u.cm**-6))
+    return density**2 * depth
 
 def ff_opacity(temp,nu,em):
     '''
@@ -89,7 +77,7 @@ def ff_opacity(temp,nu,em):
     nutrick = np.reshape(nu,(1,1,len(nu)))
     emtrick = np.reshape(em,(em.shape[0],em.shape[1],1))
 
-    return((3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nutrick/u.GHz)**-2.1 * (emtrick/(u.pc*u.cm**-6))).to(u.dimensionless_unscaled))
+    return 3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nutrick/u.GHz)**-2.1 * (emtrick/(u.pc*u.cm**-6))
 
 def sphere_depth_gen(radius,length,steps):
     '''
@@ -111,7 +99,7 @@ def sphere_depth_gen(radius,length,steps):
     midpoint = length / 2 #Where there is a depth of the diameter
     stepper = np.array([np.linspace(0,length,steps) + pixel_dist/2]) * length.unit
     depth = np.nan_to_num(2*np.sqrt(radius**2 - (midpoint-stepper)**2 - (midpoint-stepper.T)**2))
-    return(depth)
+    return depth
 
 def temp_brightness(depth,temp):
     '''
@@ -122,7 +110,7 @@ def temp_brightness(depth,temp):
     Returns the brightness temperature for a given optical depth
     and electron temp
     '''
-    return(temp * (1-np.exp(-depth)))
+    return temp * (1-np.exp(-depth))
 
 def intensity(brighttemp,freq):
     '''
@@ -133,7 +121,7 @@ def intensity(brighttemp,freq):
     frequency to calculate the intensity of the emission via
     equation 2.33 from the NRAO textbook
     '''
-    return(2 * c.k_B * brighttemp * freq**2 / c.c**2)
+    return 2 * c.k_B * brighttemp * freq**2 / c.c**2
 
 def flux_density_old(intensity,dist,delta):
     '''
@@ -147,7 +135,7 @@ def flux_density_old(intensity,dist,delta):
     Taken from equation 2.10 of the NRAO textbook
     '''
     solidangle = delta**2 / dist**2
-    return(intensity * solidangle)
+    return intensity * solidangle
 
 def flux_density(intensity,delta):
     '''
@@ -156,7 +144,7 @@ def flux_density(intensity,delta):
     
     Calculates flux density from intensity via equation 2.10
     '''
-    return(intensity * delta**2 / u.rad**2)
+    return intensity * delta**2 / u.rad**2
 
 def blurring_agent(flux_density,radius):
     '''
@@ -166,7 +154,7 @@ def blurring_agent(flux_density,radius):
 
     This function simply cause spatial smoothing in each frame
     '''
-    return(ndi.gaussian_filter(flux_density,[radius,radius,0]))
+    return ndi.gaussian_filter(flux_density,[radius,radius,0])
 
 class HIIRegion:
     '''
@@ -191,10 +179,10 @@ class Telescope:
     and the width of an image it generates in pixels. It also
     takes in a beam area (pix) to simulate gaussian effects.
     '''
-    def __init__(self, pixwid, imwid, beamarea, snr):
+    def __init__(self, pixwid, imwid, beamsize, snr):
         self.pixwid = pixwid
         self.imwid = imwid
-        self.beamarea = beamarea
+        self.beamsize = beamsize
         self.snr = snr
 
     def observe(self,hiiregion,nu):
@@ -217,13 +205,16 @@ class Telescope:
         # Creating the image before any noise or smoothing
         tau = ff_opacity(hiiregion.temperature,nu,em)
         tempbright = temp_brightness(tau,hiiregion.temperature)
-        inten = intensity(tempbright,nu)
-        rawflux = flux_density(inten,self.pixwid)
+
+        # Commenting out intensity related stuff, staying in 
+        # domain of temperature brightness
+        #inten = intensity(tempbright,nu)
+        #rawflux = flux_density(inten,self.pixwid)
 
         # Adding noise and smoothing out
-        flux = rawflux + np.random.normal(0, rawflux.std().value,rawflux.shape) / self.snr * rawflux.unit
-        observation = blurring_agent(flux,np.trunc(np.sqrt(self.beamarea/u.pix))) * flux.unit
-        return(observation.to(u.Jy))
+        tempbright += np.random.normal(0, tempbright[tempbright!=0].std().value,tempbright.shape) / self.snr * tempbright.unit
+        observation = blurring_agent(tempbright,self.beamsize/self.pixwid) * tempbright.unit
+        return observation
 
 def main():
     # Creating a test region
@@ -239,13 +230,13 @@ def main():
     # Creating a test telescope
     pixwid = 1 * u.arcsec
     imwid = 100
-    beamarea = 1 * u.pix
-    testtelescope = Telescope(pixwid,imwid,beamarea,4)
+    beamsize = 5 * u.arcsec
+    testtelescope = Telescope(pixwid,imwid,beamsize,1)
 
     # Generating a test observation
     nu_0 = 6 * u.GHz
     nu_1 = np.linspace(4,10,12) * u.GHz
-    observation = testtelescope.observe(testregion,nu_1)
+    observation = testtelescope.observe(testregion,nu_1).to(u.K)
 
     #nu = np.linspace(0.9999*nu_0,1.0001*nu_0)
     #phi = line_broadening(temp,nu_0,nu)
