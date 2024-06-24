@@ -9,20 +9,6 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import scipy.ndimage as ndi
 
-def line_broadening(temp, nu_0, nu):
-    '''
-    Takes the temperature of the HII(temp), the transition 
-    frequency (nu_0), and a range of frequencies to test (nu).
-
-    Returns the gaussian value for each provided frequency
-    '''
-    # Calculation broken into two parts due to complexity
-    # raw_phi creates the gaussian profile without the constant
-    # in front
-    raw_phi = np.exp( -(c.m_p * c.c**2) / (2 * c.k_B * temp) * (nu - nu_0)**2 / nu_0**2 )
-    phi = c.c / nu_0 * (c.m_p / (2 * np.pi * c.k_B * temp))**(1/2) * raw_phi
-    return phi
-
 def thermal_fwhm(temp, nu_0):
     '''
     temp -- Temperature of the hydrogen
@@ -122,20 +108,6 @@ def intensity(brighttemp,freq):
     equation 2.33 from the NRAO textbook
     '''
     return 2 * c.k_B * brighttemp * freq**2 / c.c**2
-
-def flux_density_old(intensity,dist,delta):
-    '''
-    intensity -- Intensity 'data cube'
-    dist      -- Distance from Earth the HII region is
-    delta     -- The physical size of each pixel
-
-    This function calculates the solid angle subtended by each
-    pixel then uses that to create a flux density data cube
-
-    Taken from equation 2.10 of the NRAO textbook
-    '''
-    solidangle = delta**2 / dist**2
-    return intensity * solidangle
 
 def flux_density(intensity,delta):
     '''
