@@ -35,6 +35,15 @@ def line_broadening(temp, nu_0, nu):
     phi = c.c / nu_0 * (c.m_p / (2 * np.pi * c.k_B * temp))**(1/2) * raw_phi
     return(phi.to(u.ns))
 
+def thermal_fwhm(temp, nu_0):
+    '''
+    temp -- Temperature of the hydrogen
+    nu_0 -- Transition frequency
+
+    Returns FWHM of thermal broadening
+    '''
+    return(np.sqrt(8*np.log(2)*c.k_B/u.c**2) * np.sqrt(temp/c.m_p) * nu_0)
+
 def freq_to_velocity(nu_0,nu):
     '''
     Takes in the laboratory frame frequency of emission and
@@ -167,7 +176,7 @@ class HIIRegion:
     When initialized, a radius, temperature, density,
     and distance from Earth must be passed to it.
     '''
-    def __init__(self, radius, temperature, density, distance):
+    def __init__(self, radius, temperature, density, distance = 1e4*u.pc):
         self.radius = radius
         self.temperature = temperature
         self.density = density
@@ -182,10 +191,11 @@ class Telescope:
     and the width of an image it generates in pixels. It also
     takes in a beam area (pix) to simulate gaussian effects.
     '''
-    def __init__(self, pixwid, imwid, beamarea):
+    def __init__(self, pixwid, imwid, beamarea, snr):
         self.pixwid = pixwid
         self.imwid = imwid
         self.beamarea = beamarea
+        self.snr = snr
 
     def observe(self,hiiregion,nu):
         '''
@@ -197,13 +207,21 @@ class Telescope:
         mock observation of it based on the attributes of the 
         telescope and the region. A range of frequencies must also
         be provided to create the observation.
+
+        This accounts for continuum as well as RRLs.
         '''
+        # Generating the emission measure for the region
         depthmap = sphere_depth_gen(hiiregion.radius,hiiregion.distance*self.imwid*self.pixwid/u.rad,self.imwid)
         em = emission_measure(hiiregion.density,depthmap)
+
+        # Creating the image before any noise or smoothing
         tau = ff_opacity(hiiregion.temperature,nu,em)
         tempbright = temp_brightness(tau,hiiregion.temperature)
         inten = intensity(tempbright,nu)
-        flux = flux_density(inten,self.pixwid)
+        rawflux = flux_density(inten,self.pixwid)
+
+        # Adding noise and smoothing out
+        flux = rawflux + np.random.normal(0, rawflux.std().value,rawflux.shape) / self.snr * rawflux.unit
         observation = blurring_agent(flux,np.trunc(np.sqrt(self.beamarea/u.pix))) * flux.unit
         return(observation.to(u.Jy))
 
@@ -215,11 +233,14 @@ def main():
     dist = 1e4 * u.pc
     testregion = HIIRegion(radius, temp, n_e, dist)
 
+    # Model nebula powered by type O6 star
+    nebO6 = HIIRegion(1.25*u.pc, 4e3*u.K, 200*u.cm**-3)
+
     # Creating a test telescope
     pixwid = 1 * u.arcsec
     imwid = 100
     beamarea = 1 * u.pix
-    testtelescope = Telescope(pixwid,imwid,beamarea)
+    testtelescope = Telescope(pixwid,imwid,beamarea,4)
 
     # Generating a test observation
     nu_0 = 6 * u.GHz
