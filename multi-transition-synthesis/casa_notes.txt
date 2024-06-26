@@ -1,0 +1,93 @@
+# Re-grid the velocity axis for a single spectral window, and save
+# as a new measurement set
+cvel2(vis="g284.ms",
+      outputvis="g284_spw16.ms",
+      spw="16",
+      outframe="LSRK",
+      mode="velocity",
+      veltype="radio",
+      restfreq="4618.790MHz",
+      start="-250.0km/s",
+      width="2.5km/s",
+      nchan=160)
+# Repeat for other spws...
+
+# Maybe here we should split each channel into its own measurement
+# set, otherwise we'll be limited by I/O speed as each process will
+# be attempting to read the same data file...
+
+# In this example, I instead concatenate all of the spws back together
+concat(vis=["g284_spw16.ms", "g284_spw25.ms", "g284_spw35.ms"], concatvis="g284_line_concat.ms")
+
+# Loop over channels and MFS image each channel (across only three
+# spectral windows in this example)
+for i in range(160):
+    # NITER = 0, so we're not CLEANING
+    tclean(vis="g284_line_concat.ms",
+       imagename=f"IMAGES/g284.line.I.mfs_channel_{i}",
+       spw=f"0:{i},1:{i},2:{i}",
+       gridder='standard',
+       specmode='mfs',
+       threshold='0mJy',
+       niter=0,
+       nterms=2,
+       deconvolver='mtmfs',
+       scales=[0,5,15],
+       gain=0.1,
+       cyclefactor=1,
+       imsize=512,
+       cell="0.75arcsec",
+       pblimit=-1.0,
+       weighting="uniform",
+       stokes="I",
+       pbcor=False)
+    spwlist = [0,1,2]
+    weightlist = [1.0,1.0,1.0]
+    chanlist = [i,i,i]
+    os.chdir("IMAGES")
+    widebandpbcor(vis="../g284_line_concat.ms",
+              imagename=f"g284.line.I.mfs_channel_{i}",
+              nterms=2,
+              pbmin=0.1,
+              threshold="0.1mJy",
+              spwlist=spwlist,
+              weightlist=weightlist,
+              chanlist=chanlist)
+    exportfits(imagename=f"g284.line.I.mfs_channel_{i}.pbcor.workdirectory/g284.line.I.mfs_channel_{i}.pb.tt0",
+               fitsimage=f"g284.line.I.mfs_channel_{i}.pb.fits",
+               overwrite=True,
+               history=False)
+    exportfits(imagename=f"g284.line.I.mfs_channel_{i}.image.tt0",
+               fitsimage=f"g284.line.I.mfs_channel_{i}.dirty.image.fits",
+               overwrite=True,
+               history=False)
+    exportfits(imagename=f"g284.line.I.mfs_channel_{i}.residual.tt0",
+               fitsimage=f"g284.line.I.mfs_channel_{i}.dirty.residual.fits",
+               overwrite=True,
+               history=False)
+    exportfits(imagename=f"g284.line.I.mfs_channel_{i}.pbcor.image.tt0",
+               fitsimage=f"g284.line.I.mfs_channel_{i}.dirty.pbcor.image.fits",
+               overwrite=True,
+               history=False)
+    exportfits(imagename=f"g284.line.I.mfs_channel_{i}.pbcor.image.alpha",
+               fitsimage=f"g284.line.I.mfs_channel_{i}.dirty.pbcor.image.alpha.fits",
+               overwrite=True,
+               history=False)
+    exportfits(imagename=f"g284.line.I.mfs_channel_{i}.pbcor.image.alpha.error",
+               fitsimage=f"g284.line.I.mfs_channel_{i}.dirty.pbcor.image.alpha.error.fits",
+               overwrite=True,
+               history=False)
+    os.chdir("..")
+
+# Concatenate the images into a datacube
+import numpy as np
+from astropy.io import fits
+header = None
+data = np.zeros((1, 160, 512, 512))
+for i in range(160):
+    hdulist = fits.open(f"IMAGES/g284.line.I.mfs_channel_{i}.dirty.pbcor.image.fits")
+    if header is None:
+        header = hdulist[0].header
+    data[:, i] = hdulist[0].data
+hdu = fits.PrimaryHDU(data, header=header)
+hdu.writeto("IMAGES/g284.line.I.channel.pbcor.image.fits")
