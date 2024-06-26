@@ -94,17 +94,6 @@ def temp_brightness(depth,temp):
     '''
     return temp * (1-np.exp(-depth))
 
-def intensity(brighttemp,freq):
-    '''
-    brighttemp -- Brightness temperature 'data cube'
-    freq       -- Frequencies for each slice of brighttemp
-
-    This function takes the brightness temperature and the used
-    frequency to calculate the intensity of the emission via
-    equation 2.33 from the NRAO textbook
-    '''
-    return 2 * c.k_B * brighttemp * freq**2 / c.c**2
-
 def flux_density(intensity,delta):
     '''
     intensity -- Intensity 'data cube'
@@ -124,22 +113,6 @@ def blurring_agent(flux_density,radius):
     '''
     return ndi.gaussian_filter(flux_density,[radius,radius,0])
 
-def rrl_frequencies(lower_freq,upper_freq):
-    '''
-    lower_freq -- Smallest frequency to check
-    upper_freq -- Highest frequency to check
-
-    Takes an upper and lower frequency, and returns the frequencies
-    of all RRLs between them.
-    '''
-    # Using equation 7.14 to estimate range of transitions
-    lower_n = np.floor(((2 * c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 / upper_freq)**(1/3)).to(u.m/u.m))
-    upper_n = np.floor(((2 * c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 / lower_freq)**(1/3)).to(u.m/u.m)) + 1
-    # Using equation 7.12 to get frequency list
-    n = np.arange(lower_n,upper_n)
-    rrl_freq = c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 * (1/n**2 - 1/(n+1)**2)
-    return rrl_freq
-
 class HIIRegion:
     '''
     Purpose of structure is to be a fully homogenous,
@@ -148,11 +121,10 @@ class HIIRegion:
     When initialized, a radius, temperature, density,
     and distance from Earth must be passed to it.
     '''
-    def __init__(self, radius, temperature, density, distance = 1e4*u.pc):
+    def __init__(self, radius, temperature, density):
         self.radius = radius
         self.temperature = temperature
         self.density = density
-        self.distance = distance
 
 class Telescope:
     '''
@@ -163,13 +135,13 @@ class Telescope:
     and the width of an image it generates in pixels. It also
     takes in a beam area (pix) to simulate gaussian effects.
     '''
-    def __init__(self, pixwid, imwid, beamsize, snr):
+    def __init__(self, pixwid, imwid, beamsize, noise):
         self.pixwid = pixwid
         self.imwid = imwid
         self.beamsize = beamsize
-        self.snr = snr
+        self.noise = noise
 
-    def observe(self,hiiregion,nu):
+    def observe(self,hiiregion,rrl_freq,samples):
         '''
         hiiregion -- An HII region to be observed by the telescope
         nu        -- A collection of frequencies to have images
@@ -182,27 +154,28 @@ class Telescope:
 
         This accounts for continuum as well as RRLs.
         '''
+        #Creating frequencies to check over
+        rrl_fwhm = thermal_fwhm(hiiregion.temperature,rrl_freq)
+        nu = np.linspace((rrl_freq-3*rrl_fwhm).to(u.GHz),(rrl_freq+3*rrl_fwhm).to(u.GHz),samples)
+
         # Generating the emission measure for the region
-        depthmap = sphere_depth_gen(hiiregion.radius,hiiregion.distance*self.imwid*self.pixwid/u.rad,self.imwid)
+        depthmap = sphere_depth_gen(hiiregion.radius,4*hiiregion.radius,self.imwid)
         em = emission_measure(hiiregion.density,depthmap)
 
         # Creating the image before any noise or smoothing
         tau = ff_opacity(hiiregion.temperature,nu,em)
         tempbright = temp_brightness(tau,hiiregion.temperature)
 
-        # Applying the RRLs
-        rrl_freq = rrl_frequencies(nu[0],nu[-1])
-        rrl_fwhm = thermal_fwhm(hiiregion.temperature,rrl_freq)
-        # From equation 7.97
+        # Applying the RRLs from equation 7.97
         rrl_temp_raw = 1.92e3 * (hiiregion.temperature/u.K)**(-3/2) * (em[...,None]/(u.pc*u.cm**-6)) * (rrl_fwhm/u.kHz)**-1 * u.K
-        # Calculating rrl temp brightness at sample points
-        rrl_temp = rrl_temp_raw[...,None] * np.exp(-1/2 * (2.35 * (rrl_freq[None,None,...,None]-nu[None,None,None,...]) / rrl_fwhm[None,None,...,None])**2)
+        rrl_temp = rrl_temp_raw[...,None] * np.exp(-1/2 * (2.35 * (rrl_freq-nu) / rrl_fwhm)**2)
         tempbright += np.sum(rrl_temp, axis=2)
 
         # Adding noise and smoothing out
-        tempbright += np.random.normal(0, tempbright[tempbright!=0].std().value,tempbright.shape) / self.snr * tempbright.unit
+        tempbright += np.random.normal(size=tempbright.shape) * self.noise
         observation = blurring_agent(tempbright,self.beamsize/self.pixwid) * tempbright.unit
-        return observation
+        velocities = freq_to_velocity(rrl_freq, nu)
+        return observation, velocities
 
 def main():
     # Creating a test region
@@ -210,7 +183,7 @@ def main():
     temp = 1e4 * u.K
     n_e = 1000 * u.cm**-3
     dist = 1e4 * u.pc
-    testregion = HIIRegion(radius, temp, n_e, dist)
+    testregion = HIIRegion(radius, temp, n_e)
 
     # Model nebula powered by type O6 star
     nebO6 = HIIRegion(1.25*u.pc, 4e3*u.K, 200*u.cm**-3)
@@ -219,16 +192,11 @@ def main():
     pixwid = 1 * u.arcsec
     imwid = 100
     beamsize = 5 * u.arcsec
-    testtelescope = Telescope(pixwid,imwid,beamsize,10)
+    testtelescope = Telescope(pixwid,imwid,beamsize,10*u.K)
 
     # Generating a test observation
-    nu_0 = 6 * u.GHz
-    nu_1 = np.linspace(4.05,4.06,2000) * u.GHz
-    rrl_test = rrl_frequencies(nu_1[0],nu_1[-1])[0]
-    test_fwhm = thermal_fwhm(temp,rrl_test)
-    nu_2 = np.linspace((rrl_test-3*test_fwhm).to(u.GHz),(rrl_test+3*test_fwhm).to(u.GHz),200)
-    observation = testtelescope.observe(testregion,nu_2).to(u.K)
-    v_nu_2 = freq_to_velocity(rrl_test,nu_2)
+    nu_0 = 4 * u.GHz
+    observation, velocities = testtelescope.observe(testregion,nu_0,200)
 
     '''
     # Plotting the thermal broadening
@@ -258,14 +226,16 @@ def main():
     plt.colorbar(im, ax=[ax1,ax2],fraction=0.046, pad=0.04,shrink=0.8)
     plt.show()
     '''
-
     # Generate a basic spectra
-
-    plt.plot(v_nu_2.to(u.km/u.s),np.average(observation,axis=(0,1)))
+    plt.plot(velocities.to(u.km/u.s),np.average(observation.to(u.K)*(observation>np.max(observation)/10),axis=(0,1)))
     plt.title("RRL at approximately 4 GHz")
     plt.xlabel("Doppler shift (km/s)")
     plt.ylabel("Brightness temperature (K)")
     plt.show()
+    '''
+    plt.imshow(observation[:,:,0].to(u.K).value)
+    plt.show()
+    '''
 
 if __name__ == "__main__":
     main()
