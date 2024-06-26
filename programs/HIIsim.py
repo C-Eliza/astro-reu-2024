@@ -5,6 +5,7 @@
 import numpy as np
 import astropy.units as u
 import astropy.constants as c
+from astropy.io import fits
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import scipy.ndimage as ndi
@@ -103,15 +104,15 @@ def flux_density(intensity,delta):
     '''
     return intensity * delta**2 / u.rad**2
 
-def blurring_agent(flux_density,radius):
+def blurring_agent(data_cube,radius):
     '''
-    flux_density -- Data cube of true flux density values
-    radius       -- The radius (int) of the smoothing for the
+    data_cube -- Data cube to be smoothed over
+    radius    -- The radius (int) of the smoothing for the
     image to use to simulate a radio observation
 
     This function simply cause spatial smoothing in each frame
     '''
-    return ndi.gaussian_filter(flux_density,[radius,radius,0])
+    return ndi.gaussian_filter(data_cube,[radius,radius,0])
 
 class HIIRegion:
     '''
@@ -198,6 +199,22 @@ def main():
     nu_0 = 4 * u.GHz
     observation, velocities = testtelescope.observe(testregion,nu_0,200)
 
+    # Saving to a fits file
+    hdu = fits.PrimaryHDU(observation.to(u.K).value.T)
+    hdu.header['CRVAL1'] = 0
+    hdu.header['CRVAL2'] = 0
+    hdu.header['CRVAL3'] = 0
+    hdu.header['CTYPE1'] = 'VEL-KM/S'
+    hdu.header['CTYPE2'] = 'RA---DEG'
+    hdu.header['CTYPE3'] = 'DEC--DEG'
+    hdu.header['CRPIX1'] = observation.shape[2]/2 + 1/2
+    hdu.header['CRPIX2'] = observation.shape[1]/2 + 1/2
+    hdu.header['CRPIX3'] = observation.shape[0]/2 + 1/2
+    hdu.header['CDELT1'] = (velocities[1] - velocities[0]).to(u.km/u.s).value
+    hdu.header['CDELT2'] = (pixwid / u.rad).to(u.m/u.m).value
+    hdu.header['CDELT3'] = (pixwid / u.rad).to(u.m/u.m).value
+    hdu.writeto('fits/testfits.fits',overwrite=True)
+
     '''
     # Plotting the thermal broadening
     plt.plot(velocities,phi)
@@ -225,14 +242,12 @@ def main():
     fig.canvas.draw()
     plt.colorbar(im, ax=[ax1,ax2],fraction=0.046, pad=0.04,shrink=0.8)
     plt.show()
-    '''
     # Generate a basic spectra
     plt.plot(velocities.to(u.km/u.s),np.average(observation.to(u.K)*(observation>np.max(observation)/10),axis=(0,1)))
     plt.title("RRL at approximately 4 GHz")
     plt.xlabel("Doppler shift (km/s)")
     plt.ylabel("Brightness temperature (K)")
     plt.show()
-    '''
     plt.imshow(observation[:,:,0].to(u.K).value)
     plt.show()
     '''
