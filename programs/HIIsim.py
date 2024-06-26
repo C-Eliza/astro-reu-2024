@@ -59,11 +59,7 @@ def ff_opacity(temp,nu,em):
     This function returns the free-free opacity of a region with
     a given temperature and emission measure for a frequency.
     '''
-    # Moves frequency to the third axis so the cube is created
-    nutrick = np.reshape(nu,(1,1,len(nu)))
-    emtrick = np.reshape(em,(em.shape[0],em.shape[1],1))
-
-    return 3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nutrick/u.GHz)**-2.1 * (emtrick/(u.pc*u.cm**-6))
+    return 3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nu/u.GHz)**-2.1 * (em[...,None]/(u.pc*u.cm**-6))
 
 def sphere_depth_gen(radius,length,steps):
     '''
@@ -137,10 +133,10 @@ def rrl_frequencies(lower_freq,upper_freq):
     of all RRLs between them.
     '''
     # Using equation 7.14 to estimate range of transitions
-    lower_n = np.floor(((2 * c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 / upper_freq)**(1/3)))
-    upper_n = np.floor(((2 * c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 / lower_freq)**(1/3))) + 1
+    lower_n = np.floor(((2 * c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 / upper_freq)**(1/3)).to(u.m/u.m))
+    upper_n = np.floor(((2 * c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 / lower_freq)**(1/3)).to(u.m/u.m)) + 1
     # Using equation 7.12 to get frequency list
-    n = np.arange(lower_n.to(u.m/u.m),upper_n.to(u.m/u.m))
+    n = np.arange(lower_n,upper_n)
     rrl_freq = c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 * (1/n**2 - 1/(n+1)**2)
     return rrl_freq
 
@@ -223,21 +219,16 @@ def main():
     pixwid = 1 * u.arcsec
     imwid = 100
     beamsize = 5 * u.arcsec
-    testtelescope = Telescope(pixwid,imwid,beamsize,9000)
+    testtelescope = Telescope(pixwid,imwid,beamsize,10)
 
     # Generating a test observation
     nu_0 = 6 * u.GHz
     nu_1 = np.linspace(4.05,4.06,2000) * u.GHz
-    observation = testtelescope.observe(testregion,nu_1).to(u.K)
-
-    #nu = np.linspace(0.9999*nu_0,1.0001*nu_0)
-    #phi = line_broadening(temp,nu_0,nu)
-    #velocities = freq_to_velocity(nu_0,nu)
-
-    # Working on the free-free opacity
-    #depth = sphere_depth_gen(1 * u.AU, 2.4 * u.AU, 49)
-    #em = emission_measure(n_e,depth)
-    #tau = ff_opacity(temp,nu_1,em)
+    rrl_test = rrl_frequencies(nu_1[0],nu_1[-1])[0]
+    test_fwhm = thermal_fwhm(temp,rrl_test)
+    nu_2 = np.linspace((rrl_test-3*test_fwhm).to(u.GHz),(rrl_test+3*test_fwhm).to(u.GHz),200)
+    observation = testtelescope.observe(testregion,nu_2).to(u.K)
+    v_nu_2 = freq_to_velocity(rrl_test,nu_2)
 
     '''
     # Plotting the thermal broadening
@@ -269,7 +260,11 @@ def main():
     '''
 
     # Generate a basic spectra
-    plt.plot(nu_1,np.average(observation,axis=(0,1)))
+
+    plt.plot(v_nu_2.to(u.km/u.s),np.average(observation,axis=(0,1)))
+    plt.title("RRL at approximately 4 GHz")
+    plt.xlabel("Doppler shift (km/s)")
+    plt.ylabel("Brightness temperature (K)")
     plt.show()
 
 if __name__ == "__main__":
