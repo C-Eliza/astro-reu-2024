@@ -16,7 +16,7 @@ def thermal_fwhm(temp, nu_0):
 
     Returns FWHM of thermal broadening
     '''
-    return np.sqrt(8*np.log(2)*c.k_B/u.c**2) * np.sqrt(temp/c.m_p) * nu_0
+    return np.sqrt(8*np.log(2)*c.k_B/c.c**2) * np.sqrt(temp/c.m_p) * nu_0
 
 def freq_to_velocity(nu_0,nu):
     '''
@@ -128,6 +128,22 @@ def blurring_agent(flux_density,radius):
     '''
     return ndi.gaussian_filter(flux_density,[radius,radius,0])
 
+def rrl_frequencies(lower_freq,upper_freq):
+    '''
+    lower_freq -- Smallest frequency to check
+    upper_freq -- Highest frequency to check
+
+    Takes an upper and lower frequency, and returns the frequencies
+    of all RRLs between them.
+    '''
+    # Using equation 7.14 to estimate range of transitions
+    lower_n = np.floor(((2 * c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 / upper_freq)**(1/3)))
+    upper_n = np.floor(((2 * c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 / lower_freq)**(1/3))) + 1
+    # Using equation 7.12 to get frequency list
+    n = np.arange(lower_n.to(u.m/u.m),upper_n.to(u.m/u.m))
+    rrl_freq = c.Ryd * c.c * (1+c.m_e/c.m_p)**-1 * (1/n**2 - 1/(n+1)**2)
+    return rrl_freq
+
 class HIIRegion:
     '''
     Purpose of structure is to be a fully homogenous,
@@ -178,10 +194,14 @@ class Telescope:
         tau = ff_opacity(hiiregion.temperature,nu,em)
         tempbright = temp_brightness(tau,hiiregion.temperature)
 
-        # Commenting out intensity related stuff, staying in 
-        # domain of temperature brightness
-        #inten = intensity(tempbright,nu)
-        #rawflux = flux_density(inten,self.pixwid)
+        # Applying the RRLs
+        rrl_freq = rrl_frequencies(nu[0],nu[-1])
+        rrl_fwhm = thermal_fwhm(hiiregion.temperature,rrl_freq)
+        # From equation 7.97
+        rrl_temp_raw = 1.92e3 * (hiiregion.temperature/u.K)**(-3/2) * (em[...,None]/(u.pc*u.cm**-6)) * (rrl_fwhm/u.kHz)**-1 * u.K
+        # Calculating rrl temp brightness at sample points
+        rrl_temp = rrl_temp_raw[...,None] * np.exp(-1/2 * (2.35 * (rrl_freq[None,None,...,None]-nu[None,None,None,...]) / rrl_fwhm[None,None,...,None])**2)
+        tempbright += np.sum(rrl_temp, axis=2)
 
         # Adding noise and smoothing out
         tempbright += np.random.normal(0, tempbright[tempbright!=0].std().value,tempbright.shape) / self.snr * tempbright.unit
@@ -203,11 +223,11 @@ def main():
     pixwid = 1 * u.arcsec
     imwid = 100
     beamsize = 5 * u.arcsec
-    testtelescope = Telescope(pixwid,imwid,beamsize,1)
+    testtelescope = Telescope(pixwid,imwid,beamsize,9000)
 
     # Generating a test observation
     nu_0 = 6 * u.GHz
-    nu_1 = np.linspace(4,10,12) * u.GHz
+    nu_1 = np.linspace(4.05,4.06,2000) * u.GHz
     observation = testtelescope.observe(testregion,nu_1).to(u.K)
 
     #nu = np.linspace(0.9999*nu_0,1.0001*nu_0)
@@ -226,7 +246,7 @@ def main():
     plt.xlabel("Doppler shift (km/s)")
     plt.ylabel("Distribution (ns?)")
     '''
-
+    '''
     # Showing test observations
     fig = plt.figure()
     fig.suptitle('Test observation of HII region')
@@ -245,6 +265,11 @@ def main():
 
     fig.canvas.draw()
     plt.colorbar(im, ax=[ax1,ax2],fraction=0.046, pad=0.04,shrink=0.8)
+    plt.show()
+    '''
+
+    # Generate a basic spectra
+    plt.plot(nu_1,np.average(observation,axis=(0,1)))
     plt.show()
 
 if __name__ == "__main__":
