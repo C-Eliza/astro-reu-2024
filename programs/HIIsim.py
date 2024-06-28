@@ -200,19 +200,26 @@ def main():
     observation, velocities = testtelescope.observe(testregion,nu_0,200)
 
     # Saving to a fits file
-    hdu = fits.PrimaryHDU(observation.to(u.K).value.T)
+    hdu = fits.PrimaryHDU(np.transpose(observation.to(u.K).value,(2,0,1)))
     hdu.header['CRVAL1'] = 0
     hdu.header['CRVAL2'] = 0
-    hdu.header['CRVAL3'] = 0
-    hdu.header['CTYPE1'] = 'VEL-KM/S'
-    hdu.header['CTYPE2'] = 'RA---DEG'
-    hdu.header['CTYPE3'] = 'DEC--DEG'
-    hdu.header['CRPIX1'] = observation.shape[2]/2 + 1/2
+    hdu.header['CRVAL3'] = 20
+    hdu.header['CTYPE3'] = 'VEL'
+    hdu.header['CTYPE1'] = 'RA-TAN'
+    hdu.header['CTYPE2'] = 'DEC-TAN'
+    hdu.header['CRPIX1'] = observation.shape[0]/2 + 1/2
     hdu.header['CRPIX2'] = observation.shape[1]/2 + 1/2
-    hdu.header['CRPIX3'] = observation.shape[0]/2 + 1/2
-    hdu.header['CDELT1'] = (velocities[1] - velocities[0]).to(u.km/u.s).value
-    hdu.header['CDELT2'] = (pixwid / u.rad).to(u.m/u.m).value
-    hdu.header['CDELT3'] = (pixwid / u.rad).to(u.m/u.m).value
+    hdu.header['CRPIX3'] = observation.shape[2]/2 + 1/2
+    hdu.header['NAXIS1'] = observation.shape[0]
+    hdu.header['NAXIS2'] = observation.shape[1]
+    hdu.header['NAXIS3'] = observation.shape[2]
+    hdu.header['CDELT3'] = (velocities[1] - velocities[0]).to(u.km/u.s).value
+    hdu.header['CDELT1'] = (pixwid / u.deg).to(u.m/u.m).value
+    hdu.header['CDELT2'] = (pixwid / u.deg).to(u.m/u.m).value
+    hdu.header['BUNIT'] = 'K'
+    hdu.header['CUNIT1'] = 'deg'
+    hdu.header['CUNIT2'] = 'deg'
+    hdu.header['CUNIT3'] = 'km/s'
     hdu.writeto('fits/testfits.fits',overwrite=True)
 
     '''
