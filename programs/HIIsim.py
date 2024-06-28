@@ -136,13 +136,15 @@ class Telescope:
     and the width of an image it generates in pixels. It also
     takes in a beam area (pix) to simulate gaussian effects.
     '''
-    def __init__(self, pixwid, imwid, beamsize, noise):
+    def __init__(self, pixwid = 1*u.arcsec, imwid = 100, beamsize = 10*u.arcsec, noise = 1*u.K, channels = 200, rrl_freq = 6*u.GHz):
         self.pixwid = pixwid
         self.imwid = imwid
         self.beamsize = beamsize
         self.noise = noise
+        self.channels = channels
+        self.rrl_freq = rrl_freq
 
-    def observe(self,hiiregion,rrl_freq,samples):
+    def observe(self,hiiregion,filename):
         '''
         hiiregion -- An HII region to be observed by the telescope
         nu        -- A collection of frequencies to have images
@@ -156,8 +158,8 @@ class Telescope:
         This accounts for continuum as well as RRLs.
         '''
         #Creating frequencies to check over
-        rrl_fwhm = thermal_fwhm(hiiregion.temperature,rrl_freq)
-        nu = np.linspace((rrl_freq-3*rrl_fwhm).to(u.GHz),(rrl_freq+3*rrl_fwhm).to(u.GHz),samples)
+        rrl_fwhm = thermal_fwhm(hiiregion.temperature,self.rrl_freq)
+        nu = np.linspace((self.rrl_freq-3*rrl_fwhm).to(u.GHz),(self.rrl_freq+3*rrl_fwhm).to(u.GHz),self.channels)
 
         # Generating the emission measure for the region
         depthmap = sphere_depth_gen(hiiregion.radius,4*hiiregion.radius,self.imwid)
@@ -169,14 +171,43 @@ class Telescope:
 
         # Applying the RRLs from equation 7.97
         rrl_temp_raw = 1.92e3 * (hiiregion.temperature/u.K)**(-3/2) * (em[...,None]/(u.pc*u.cm**-6)) * (rrl_fwhm/u.kHz)**-1 * u.K
-        rrl_temp = rrl_temp_raw[...,None] * np.exp(-1/2 * (2.35 * (rrl_freq-nu) / rrl_fwhm)**2)
+        rrl_temp = rrl_temp_raw[...,None] * np.exp(-1/2 * (2.35 * (self.rrl_freq-nu) / rrl_fwhm)**2)
         tempbright += np.sum(rrl_temp, axis=2)
 
         # Adding noise and smoothing out
         tempbright += np.random.normal(size=tempbright.shape) * self.noise
         observation = blurring_agent(tempbright,self.beamsize/self.pixwid) * tempbright.unit
-        velocities = freq_to_velocity(rrl_freq, nu)
-        return observation, velocities
+        velocities = freq_to_velocity(self.rrl_freq, nu)
+
+        # Saving to a fits file
+        hdu = fits.PrimaryHDU(np.transpose(observation.to(u.K).value,(2,0,1)))
+        hdu.header['OBJECT'] = 'Sample RRL Observation'
+        hdu.header['CRVAL1'] = 0.0
+        hdu.header['CRVAL2'] = 0.0
+        hdu.header['CRVAL3'] = 0.0
+        hdu.header['CTYPE3'] = 'VEL'
+        hdu.header['CTYPE1'] = 'RA---TAN'
+        hdu.header['CTYPE2'] = 'DEC--TAN'
+        hdu.header['CRPIX1'] = observation.shape[0]/2 + 1/2
+        hdu.header['CRPIX2'] = observation.shape[1]/2 + 1/2
+        hdu.header['CRPIX3'] = observation.shape[2]/2 + 1/2
+        hdu.header['NAXIS1'] = observation.shape[0]
+        hdu.header['NAXIS2'] = observation.shape[1]
+        hdu.header['NAXIS3'] = observation.shape[2]
+        hdu.header['CDELT3'] = (velocities[1] - velocities[0]).to(u.km/u.s).value
+        hdu.header['CDELT1'] = (self.pixwid / u.deg).to(u.m/u.m).value
+        hdu.header['CDELT2'] = (self.pixwid / u.deg).to(u.m/u.m).value
+        hdu.header['BTYPE'] = 'Brightness Temperature'
+        hdu.header['BUNIT'] = 'K'
+        hdu.header['CUNIT1'] = 'deg'
+        hdu.header['CUNIT2'] = 'deg'
+        hdu.header['CUNIT3'] = 'km/s'
+        hdu.header['BMAJ'] = (self.beamsize / u.deg).to(u.m/u.m).value
+        hdu.header['BMIN'] = (self.beamsize / u.deg).to(u.m/u.m).value
+        hdu.header['BPA'] = 0.0
+        hdu.header['RESTFRQ'] = self.rrl_freq.to(u.Hz).value
+        hdu.writeto('fits/'+filename+'.fits',overwrite=True)
+        pass
 
 def main():
     # Creating a test region
@@ -193,71 +224,8 @@ def main():
     pixwid = 1 * u.arcsec
     imwid = 100
     beamsize = 5 * u.arcsec
-    testtelescope = Telescope(pixwid,imwid,beamsize,10*u.K)
-
-    # Generating a test observation
-    nu_0 = 4 * u.GHz
-    observation, velocities = testtelescope.observe(testregion,nu_0,200)
-
-    # Saving to a fits file
-    hdu = fits.PrimaryHDU(np.transpose(observation.to(u.K).value,(2,0,1)))
-    hdu.header['CRVAL1'] = 0
-    hdu.header['CRVAL2'] = 0
-    hdu.header['CRVAL3'] = 20
-    hdu.header['CTYPE3'] = 'VEL'
-    hdu.header['CTYPE1'] = 'RA-TAN'
-    hdu.header['CTYPE2'] = 'DEC-TAN'
-    hdu.header['CRPIX1'] = observation.shape[0]/2 + 1/2
-    hdu.header['CRPIX2'] = observation.shape[1]/2 + 1/2
-    hdu.header['CRPIX3'] = observation.shape[2]/2 + 1/2
-    hdu.header['NAXIS1'] = observation.shape[0]
-    hdu.header['NAXIS2'] = observation.shape[1]
-    hdu.header['NAXIS3'] = observation.shape[2]
-    hdu.header['CDELT3'] = (velocities[1] - velocities[0]).to(u.km/u.s).value
-    hdu.header['CDELT1'] = (pixwid / u.deg).to(u.m/u.m).value
-    hdu.header['CDELT2'] = (pixwid / u.deg).to(u.m/u.m).value
-    hdu.header['BUNIT'] = 'K'
-    hdu.header['CUNIT1'] = 'deg'
-    hdu.header['CUNIT2'] = 'deg'
-    hdu.header['CUNIT3'] = 'km/s'
-    hdu.writeto('fits/testfits.fits',overwrite=True)
-
-    '''
-    # Plotting the thermal broadening
-    plt.plot(velocities,phi)
-    plt.title('Thermal broadening at 10000K in 6GHz')
-    plt.xlabel("Doppler shift (km/s)")
-    plt.ylabel("Distribution (ns?)")
-    '''
-    '''
-    # Showing test observations
-    fig = plt.figure()
-    fig.suptitle('Test observation of HII region')
-
-    ax1 = fig.add_subplot(121)
-    ax1.set_title('4 GHz')
-    ax1.xaxis.set_major_locator(ticker.NullLocator())
-    ax1.yaxis.set_major_locator(ticker.NullLocator())
-    im = ax1.imshow(observation[:,:,0].value, interpolation='nearest',vmax=np.max(observation.value))
-
-    ax2 = fig.add_subplot(122)
-    ax2.set_title('6 GHz')
-    ax2.xaxis.set_major_locator(ticker.NullLocator())
-    ax2.yaxis.set_major_locator(ticker.NullLocator())
-    im = ax2.imshow(observation[:,:,3].value, interpolation='nearest',vmax=np.max(observation.value))
-
-    fig.canvas.draw()
-    plt.colorbar(im, ax=[ax1,ax2],fraction=0.046, pad=0.04,shrink=0.8)
-    plt.show()
-    # Generate a basic spectra
-    plt.plot(velocities.to(u.km/u.s),np.average(observation.to(u.K)*(observation>np.max(observation)/10),axis=(0,1)))
-    plt.title("RRL at approximately 4 GHz")
-    plt.xlabel("Doppler shift (km/s)")
-    plt.ylabel("Brightness temperature (K)")
-    plt.show()
-    plt.imshow(observation[:,:,0].to(u.K).value)
-    plt.show()
-    '''
+    testtelescope = Telescope()
+    testtelescope.observe(testregion,'testfits')
 
 if __name__ == "__main__":
     main()
