@@ -6,9 +6,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as c
 from astropy.io import fits
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-import scipy.ndimage as ndi
+from scipy.ndimage import gaussian_filter
 
 def thermal_fwhm(temp, nu_0):
     '''
@@ -62,12 +60,12 @@ def ff_opacity(temp,nu,em):
     '''
     return 3.28e-7 * (temp/(1e4*u.K))**-1.35 * (nu/u.GHz)**-2.1 * (em[...,None]/(u.pc*u.cm**-6))
 
-def sphere_depth_gen(radius,length,steps):
+def sphere_depth_gen(radius,imsize,impix):
     '''
     radius -- Radius of the sphere being used, can be visual
     radius or physical radius
-    length -- Size of the image, must be same unit as radius
-    steps  -- The number of pixels in the x and y directions
+    imsize -- Size of the image, must be same unit as radius
+    impix  -- The number of pixels in the x and y directions
 
     This function takes the three listed constants and returns
     a matrix of the distance from to the front to back at each
@@ -77,11 +75,13 @@ def sphere_depth_gen(radius,length,steps):
     perfect sphere.
     '''
     #Delta between each pixel
-    pixel_dist = length / steps
+    pixel_dist = imsize / impix
 
-    midpoint = length / 2 #Where there is a depth of the diameter
-    stepper = np.array([np.linspace(0,length,steps) + pixel_dist/2]) * length.unit
-    depth = np.nan_to_num(2*np.sqrt(radius**2 - (midpoint-stepper)**2 - (midpoint-stepper.T)**2))
+    midpoint = imsize / 2 #Where there is a depth of the diameter
+    stepper = np.linspace(0,imsize.value,impix) * imsize.unit + pixel_dist/2
+    i, j = np.meshgrid(stepper,stepper,indexing='ij')
+    sqrdepth = radius**2 - (midpoint-i)**2 - (midpoint-j)**2
+    depth = 2*np.sqrt(sqrdepth * (sqrdepth>0))
     return depth
 
 def temp_brightness(depth,temp):
@@ -112,7 +112,7 @@ def blurring_agent(data_cube,radius):
 
     This function simply cause spatial smoothing in each frame
     '''
-    return ndi.gaussian_filter(data_cube,[radius,radius,0])
+    return gaussian_filter(data_cube,[radius,radius,0])
 
 class HIIRegion:
     '''
@@ -122,7 +122,16 @@ class HIIRegion:
     When initialized, a radius, temperature, density,
     and distance from Earth must be passed to it.
     '''
-    def __init__(self, radius, temperature, density):
+    def __init__(self, radius=1*u.parsec, temperature=1e4*u.K, density=1000*u.cm**-3):
+        '''
+        radius -- Radius of the HII region, astropy length
+        quantity.
+        temperature -- Temperature of the HII region as an
+        astropy temperature quantity.
+        density -- Number density of the HII region, may be
+        an astropy number density quantity or an array of 
+        quantities.
+        '''
         self.radius = radius
         self.temperature = temperature
         self.density = density
@@ -137,6 +146,18 @@ class Telescope:
     takes in a beam area (pix) to simulate gaussian effects.
     '''
     def __init__(self, pixwid = 1*u.arcsec, imwid = 100, beamsize = 10*u.arcsec, noise = 1*u.K, channels = 200, rrl_freq = 6*u.GHz):
+        '''
+        pixwid   -- Width of pixel in astropy angle quantity.
+        imwid    -- Number of pixels in each dimension of image.
+        beamsize -- Beam width as astropy angle quantity.
+        noise    -- Amount of noise to be applied as astropy
+        temperature quantity.
+        channels -- Number of channels to be generated in data
+        cube for observation.
+        rrl_freq -- Center frequency that telescope is observing,
+        also where the peak of the RRL emission, as astropy
+        frequency quantity.
+        '''
         self.pixwid = pixwid
         self.imwid = imwid
         self.beamsize = beamsize
@@ -147,13 +168,13 @@ class Telescope:
     def observe(self,hiiregion,filename):
         '''
         hiiregion -- An HII region to be observed by the telescope
-        nu        -- A collection of frequencies to have images
-        produced for
+        filename  -- Filename of fits file to be made, images will
+        save in fits/ with a .fits extension.
 
         The observe function takes in an HII region and produces a
         mock observation of it based on the attributes of the 
-        telescope and the region. A range of frequencies must also
-        be provided to create the observation.
+        telescope and the region. This function assumes the 
+        existence of an RRL at the telescope's center frequency.
 
         This accounts for continuum as well as RRLs.
         '''
@@ -169,14 +190,14 @@ class Telescope:
         tau = ff_opacity(hiiregion.temperature,nu,em)
         tempbright = temp_brightness(tau,hiiregion.temperature)
 
-        # Applying the RRLs from equation 7.97
-        rrl_temp_raw = 1.92e3 * (hiiregion.temperature/u.K)**(-3/2) * (em[...,None]/(u.pc*u.cm**-6)) * (rrl_fwhm/u.kHz)**-1 * u.K
-        rrl_temp = rrl_temp_raw[...,None] * np.exp(-1/2 * (2.35 * (self.rrl_freq-nu) / rrl_fwhm)**2)
-        tempbright += np.sum(rrl_temp, axis=2)
+        # Applying the RRLs from equation 7.97 (math with em moved to after distribution made)
+        rrl_temp_peak = 1.92e3 * (hiiregion.temperature/u.K)**(-3/2)  * (rrl_fwhm/u.kHz)**-1 * u.K
+        rrl_temp = rrl_temp_peak * np.exp(-1/2 * (2.35 * (self.rrl_freq-nu) / rrl_fwhm)**2)
+        tempbright += rrl_temp * (em[...,None] / (u.pc * u.cm**-6))
 
         # Adding noise and smoothing out
         tempbright += np.random.normal(size=tempbright.shape) * self.noise
-        observation = blurring_agent(tempbright,self.beamsize/self.pixwid) * tempbright.unit
+        observation = blurring_agent(tempbright,self.beamsize/self.pixwid * (8*np.log(2))**(-1/2)) * tempbright.unit #Extra factor in smoothing because beam size is the FWHM of blurring
         velocities = freq_to_velocity(self.rrl_freq, nu)
 
         # Saving to a fits file
@@ -211,21 +232,15 @@ class Telescope:
 
 def main():
     # Creating a test region
-    radius = 1 * u.pc
-    temp = 1e4 * u.K
-    n_e = 1000 * u.cm**-3
-    dist = 1e4 * u.pc
-    testregion = HIIRegion(radius, temp, n_e)
+    testregion = HIIRegion()
 
     # Model nebula powered by type O6 star
     nebO6 = HIIRegion(1.25*u.pc, 4e3*u.K, 200*u.cm**-3)
 
     # Creating a test telescope
-    pixwid = 1 * u.arcsec
-    imwid = 100
-    beamsize = 5 * u.arcsec
     testtelescope = Telescope()
     testtelescope.observe(testregion,'testfits')
+    testtelescope.observe(nebO6,'nebulaO6')
 
 if __name__ == "__main__":
     main()
