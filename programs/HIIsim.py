@@ -147,7 +147,7 @@ def sphere_depth(radius, imsize, impix):
     # Centroids of grid cells
     grid_centers = grid_edges[:-1] + (grid_edges[1:] - grid_edges[:-1]) / 2.0
 
-    # square 2D grid of centroids
+    # Square 2D grid of centroids
     gridX, gridY = np.meshgrid(grid_centers, grid_centers, indexing="ij")
 
     # Distance through a sphere
@@ -191,6 +191,35 @@ def spatial_smooth(data_cube, radius):
     unit = data_cube.unit
     return gaussian_filter(data_cube.value, [radius, radius, 0]) * unit
 
+def generate_bool_sphere(radius,impix):
+    """
+    Creates a 3d array of Trues and Falses to represent whether a sphere exists
+    in that part of a cube with the sphere's center about the middlemost
+    part of the cube.
+
+    Inputs:
+        radius -- Radius of sphere to be generated (in units)
+        impix -- Number of pixels in each axis of cube
+
+    Returns:
+        bool_sphere -- Matrix mapping where sphere exists
+    """
+    # Defining image size
+    imsize = radius / impix
+
+    # Edges of grid cells
+    grid_edges = np.linspace(-imsize / 2.0, imsize / 2.0, impix + 1, endpoint=True)
+
+    # Centroids of grid cells
+    grid_centers = grid_edges[:-1] + (grid_edges[1:] - grid_edges[:-1]) / 2.0
+
+    # Cubic 3D grid of centroids
+    gridX, gridY, gridZ = np.meshgrid(grid_centers, grid_centers, grid_centers, indexing="ij")
+
+    # The boolean sphere
+    bool_sphere = (radius**2 > gridX**2 + gridY**2 + gridZ**2)
+    return bool_sphere
+
 
 class HIIRegion:
     """
@@ -220,6 +249,7 @@ class HIIRegion:
         self.distance = distance
         self.electron_temperature = electron_temperature
         self.electron_density = electron_density
+        self.constant_density = np.isscalar(electron_density.value)
 
 
 class Observation:
@@ -287,24 +317,28 @@ class Observation:
         # image size in physical units
         imsize_physical = self.imsize.to("rad").value * hiiregion.distance
 
-        # 2D grid of line-of-sight depths through spherical HII region
-        depth_grid = sphere_depth(hiiregion.radius, imsize_physical, self.npix)
+        if hiiregion.constant_density:
 
-        # 2D grid of emission measure
-        em_grid = emission_measure(hiiregion.electron_density, depth_grid)
+            # 2D grid of line-of-sight depths through spherical HII region
+            depth_grid = sphere_depth(hiiregion.radius, imsize_physical, self.npix)
 
+            # 2D grid of emission measure
+            em_grid = emission_measure(hiiregion.electron_density, depth_grid)
+
+            # RRL opacity
+            rrl_fwhm_freq = thermal_fwhm(hiiregion.electron_temperature, self.rrl_freq)
+            tau_rrl = rrl_opacity(
+                hiiregion.electron_temperature,
+                em_grid,
+                self.freq_axis,
+                self.rrl_freq,
+                rrl_fwhm_freq,
+            )
+
+        else:
+            pass
         # Free-free opacity and brightness temperature
         tau_ff = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
-
-        # RRL opacity
-        rrl_fwhm_freq = thermal_fwhm(hiiregion.electron_temperature, self.rrl_freq)
-        tau_rrl = rrl_opacity(
-            hiiregion.electron_temperature,
-            em_grid,
-            self.freq_axis,
-            self.rrl_freq,
-            rrl_fwhm_freq,
-        )
 
         # Brightness temperature
         TB = brightness_temp(tau_ff + tau_rrl, hiiregion.electron_temperature)
@@ -362,7 +396,6 @@ def main():
     # Synthetic observation
     obs = Observation()
     obs.observe(testregion, "testfits")
-    obs.observe(nebO6, "nebulaO6")
 
 
 if __name__ == "__main__":
