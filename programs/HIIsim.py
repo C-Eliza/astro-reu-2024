@@ -51,8 +51,14 @@ def emission_measure(density, depth):
         density -- Electron number density (with units)
         depth -- Line-of-sight depth (with units)
 
+    Alternatively:
+        density -- 3d array of density (with units)
+        depth -- Depth of each voxel (with units)
+
     Returns:
-        em -- Emission measure (with units)
+        em -- Emission measure 2d array (with units)
+        or
+        em -- Emission measure 3d array (with units)
     """
     return density**2 * depth
 
@@ -191,7 +197,7 @@ def spatial_smooth(data_cube, radius):
     unit = data_cube.unit
     return gaussian_filter(data_cube.value, [radius, radius, 0]) * unit
 
-def generate_bool_sphere(radius,impix):
+def generate_bool_sphere(radius,simpix):
     """
     Creates a 3d array of Trues and Falses to represent whether a sphere exists
     in that part of a cube with the sphere's center about the middlemost
@@ -199,16 +205,14 @@ def generate_bool_sphere(radius,impix):
 
     Inputs:
         radius -- Radius of sphere to be generated (in units)
-        impix -- Number of pixels in each axis of cube
+        simpix -- Number of pixels in each axis of cube
 
     Returns:
         bool_sphere -- Matrix mapping where sphere exists
     """
-    # Defining image size
-    imsize = radius / impix
 
     # Edges of grid cells
-    grid_edges = np.linspace(-imsize / 2.0, imsize / 2.0, impix + 1, endpoint=True)
+    grid_edges = np.linspace(-radius, radius, impix + 1, endpoint=True)
 
     # Centroids of grid cells
     grid_centers = grid_edges[:-1] + (grid_edges[1:] - grid_edges[:-1]) / 2.0
@@ -317,6 +321,9 @@ class Observation:
         # image size in physical units
         imsize_physical = self.imsize.to("rad").value * hiiregion.distance
 
+        #calculating thermal broadening
+        rrl_fwhm_freq = thermal_fwhm(hiiregion.electron_temperature, self.rrl_freq)
+
         if hiiregion.constant_density:
 
             # 2D grid of line-of-sight depths through spherical HII region
@@ -326,7 +333,6 @@ class Observation:
             em_grid = emission_measure(hiiregion.electron_density, depth_grid)
 
             # RRL opacity
-            rrl_fwhm_freq = thermal_fwhm(hiiregion.electron_temperature, self.rrl_freq)
             tau_rrl = rrl_opacity(
                 hiiregion.electron_temperature,
                 em_grid,
@@ -335,10 +341,23 @@ class Observation:
                 rrl_fwhm_freq,
             )
 
+            # Free-free opacity
+            tau_ff = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
+
         else:
-            pass
-        # Free-free opacity and brightness temperature
-        tau_ff = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
+            
+            # Finding where sphere is defined
+            simpix = hiiregion.electron_density.shape[0]
+            spheremap = generate_bool_sphere(hiiregion.radius, simpix)
+
+            # Truncating off density outside sphere
+            sphere_density = hiiregion.density * spheremap
+
+            # Calculating the emission measure for each voxel
+            vox_depth = hiiregion.radius/simpix
+            em_grid = emission_measure(sphere_density,vox_depth)
+            
+
 
         # Brightness temperature
         TB = brightness_temp(tau_ff + tau_rrl, hiiregion.electron_temperature)
