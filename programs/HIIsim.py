@@ -40,6 +40,20 @@ def doppler(nu_0, nu):
     return c.c * (nu - nu_0) / nu_0
 
 
+def doppler_freq(nu_0, vel):
+    """
+    Calculate the frequencies of non-relativistic Doppler shift.
+
+    Inputs:
+        nu_0 -- Rest frequency (with units)
+        vel -- Doppler velocity (with units)
+
+    Returns:
+        nu -- Observed frequency (with units)
+    """
+    return nu_0 * (1 + vel / c.c)
+
+
 def emission_measure(density, depth):
     """
     Calculate the emission measure, assuming a homogenous medium.
@@ -236,6 +250,7 @@ class HIIRegion:
         distance=1.0 * u.kpc,
         electron_temperature=1e4 * u.K,
         electron_density=1000 * u.cm**-3,
+        velocity=0 * u.km/u.s,
     ):
         """
         Initialize a new HIIRegion object.
@@ -254,6 +269,7 @@ class HIIRegion:
         self.electron_temperature = electron_temperature
         self.electron_density = electron_density
         self.constant_density = np.isscalar(electron_density.value)
+        self.velocity = velocity
 
 
 class Observation:
@@ -357,6 +373,26 @@ class Observation:
             vox_depth = hiiregion.radius/simpix
             em_grid = emission_measure(sphere_density,vox_depth)
             
+            # Using the input velocites as gaussian line centers
+            dop_rrl_freq = doppler_freq(self.rrl_freq,self.velocity)
+            
+            # Getting rrl opacity
+            tau_rrl_3d = rrl_opacity(
+                hiiregion.electron_temperature,
+                em_grid,
+                self.freq_axis,
+                dop_rrl_freq,
+                rrl_fwhm_freq,
+            )
+
+            # Free-free opacity
+            tau_ff_3d = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
+
+            # Changing the opacities to be 2 dimensional
+            tau_rrl = np.sum(tau_rrl_3d, axis=2)
+            tau_ff = np.sum(tau_ff_3d, axis=2)
+
+            # CASE WHERE MISMATCHED SIMULATION PIXELS AND IMAGE PIXELS NOT IMPLEMENTED
 
 
         # Brightness temperature
