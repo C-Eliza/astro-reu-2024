@@ -10,6 +10,7 @@ import astropy.units as u
 import astropy.constants as c
 from astropy.io import fits
 from scipy.ndimage import gaussian_filter
+from tqdm import tqdm
 
 
 def thermal_fwhm(temp, nu_0):
@@ -376,21 +377,23 @@ class Observation:
             # Using the input velocites as gaussian line centers
             dop_rrl_freq = doppler_freq(self.rrl_freq,hiiregion.velocity)
             
-            # Getting rrl opacity
-            tau_rrl_3d = rrl_opacity(
-                hiiregion.electron_temperature,
-                em_grid,
-                self.freq_axis,
-                dop_rrl_freq,
-                rrl_fwhm_freq,
-            )
+            # Stacking and adding together channels
+            tau_rrl = np.zeros((self.npix,self.npix,self.nchan))
+            print("Solving each channel of image...")
+            for channel in tqdm(range(self.nchan)):
+                single_channel_3d = rrl_opacity(
+                    hiiregion.electron_temperature,
+                    em_grid,
+                    self.freq_axis[channel],
+                    dop_rrl_freq,
+                    rrl_fwhm_freq,
+                )
+                single_channel = np.sum(single_channel_3d,axis=2)
+                tau_rrl += single_channel
 
             # Free-free opacity
             tau_ff_3d = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
-
-            # Changing the opacities to be 2 dimensional
-            tau_rrl = np.sum(tau_rrl_3d, axis=0)
-            tau_ff = np.sum(tau_ff_3d, axis=0)
+            tau_ff = np.sum(tau_ff_3d, axis=2)
 
 
         # Brightness temperature
@@ -437,7 +440,7 @@ class Observation:
 def main():
     # Creating a test region
     testregion = HIIRegion(
-        distance = 4 * u.kpc,
+        distance=0.25*u.kpc,
     )
 
     # Model nebula powered by type O6 star
@@ -455,9 +458,11 @@ def main():
     testregion3d = HIIRegion(
         electron_density = testdens,
         velocity = testvelocity,
-        distance = 4 * u.kpc,
+        distance=0.25*u.kpc,
     )
-    obs = Observation()
+    obs = Observation(
+        nchan=10,
+    )
     obs.observe(testregion, "testfits")
     obs.observe(testregion3d, "testfits3d")
 
