@@ -270,7 +270,6 @@ class HIIRegion:
         self.distance = distance
         self.electron_temperature = electron_temperature
         self.electron_density = electron_density
-        self.constant_density = np.isscalar(electron_density.value)
         self.velocity = velocity
 
 
@@ -342,58 +341,36 @@ class Observation:
         #calculating thermal broadening
         rrl_fwhm_freq = thermal_fwhm(hiiregion.electron_temperature, self.rrl_freq)
 
-        if hiiregion.constant_density:
+        # Finding where sphere is defined
+        spheremap = generate_bool_sphere(hiiregion.radius, self.npix, imsize_physical)
 
-            # 2D grid of line-of-sight depths through spherical HII region
-            depth_grid = sphere_depth(hiiregion.radius, imsize_physical, self.npix)
+        # Truncating off density outside sphere
+        sphere_density = hiiregion.electron_density * spheremap
 
-            # 2D grid of emission measure
-            em_grid = emission_measure(hiiregion.electron_density, depth_grid)
-
-            # RRL opacity
-            tau_rrl = rrl_opacity(
+        # Calculating the emission measure for each voxel
+        vox_depth = imsize_physical/self.npix
+        em_grid = emission_measure(sphere_density,vox_depth)
+            
+        # Using the input velocites as gaussian line centers
+        dop_rrl_freq = doppler_freq(self.rrl_freq,hiiregion.velocity)
+            
+        # Stacking and adding together channels
+        tau_rrl = np.zeros((self.npix,self.npix,self.nchan))
+        print("Solving each channel of image...")
+        for channel in tqdm(range(self.nchan)):
+            single_channel_3d = rrl_opacity(
                 hiiregion.electron_temperature,
                 em_grid,
-                self.freq_axis,
-                self.rrl_freq,
+                self.freq_axis[channel],
+                dop_rrl_freq,
                 rrl_fwhm_freq,
             )
+            single_channel = np.sum(single_channel_3d,axis=2)
+            tau_rrl += single_channel
 
-            # Free-free opacity
-            tau_ff = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
-
-        else:
-            
-            # Finding where sphere is defined
-            spheremap = generate_bool_sphere(hiiregion.radius, self.npix, imsize_physical)
-
-            # Truncating off density outside sphere
-            sphere_density = hiiregion.electron_density * spheremap
-
-            # Calculating the emission measure for each voxel
-            vox_depth = imsize_physical/self.npix
-            em_grid = emission_measure(sphere_density,vox_depth)
-            
-            # Using the input velocites as gaussian line centers
-            dop_rrl_freq = doppler_freq(self.rrl_freq,hiiregion.velocity)
-            
-            # Stacking and adding together channels
-            tau_rrl = np.zeros((self.npix,self.npix,self.nchan))
-            print("Solving each channel of image...")
-            for channel in tqdm(range(self.nchan)):
-                single_channel_3d = rrl_opacity(
-                    hiiregion.electron_temperature,
-                    em_grid,
-                    self.freq_axis[channel],
-                    dop_rrl_freq,
-                    rrl_fwhm_freq,
-                )
-                single_channel = np.sum(single_channel_3d,axis=2)
-                tau_rrl += single_channel
-
-            # Free-free opacity
-            tau_ff_3d = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
-            tau_ff = np.sum(tau_ff_3d, axis=2)
+        # Free-free opacity
+        tau_ff_3d = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
+        tau_ff = np.sum(tau_ff_3d, axis=2)
 
 
         # Brightness temperature
