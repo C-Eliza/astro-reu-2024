@@ -211,7 +211,7 @@ def spatial_smooth(data_cube, radius):
     unit = data_cube.unit
     return gaussian_filter(data_cube.value, [radius, radius, 0]) * unit
 
-def generate_bool_sphere(radius,simpix):
+def generate_bool_sphere(radius,impix,imsize):
     """
     Creates a 3d array of Trues and Falses to represent whether a sphere exists
     in that part of a cube with the sphere's center about the middlemost
@@ -219,14 +219,15 @@ def generate_bool_sphere(radius,simpix):
 
     Inputs:
         radius -- Radius of sphere to be generated (in units)
-        simpix -- Number of pixels in each axis of cube
+        impix -- Number of pixels in each axis of cube
+        imsize -- Physical size of image (in units)
 
     Returns:
         bool_sphere -- Matrix mapping where sphere exists
     """
 
     # Edges of grid cells
-    grid_edges = np.linspace(-radius, radius, impix + 1, endpoint=True)
+    grid_edges = np.linspace(-imsize.to('pc').value/2, imsize.to('pc').value/2, impix + 1, endpoint=True)
 
     # Centroids of grid cells
     grid_centers = grid_edges[:-1] + (grid_edges[1:] - grid_edges[:-1]) / 2.0
@@ -235,7 +236,7 @@ def generate_bool_sphere(radius,simpix):
     gridX, gridY, gridZ = np.meshgrid(grid_centers, grid_centers, grid_centers, indexing="ij")
 
     # The boolean sphere
-    bool_sphere = (radius**2 > gridX**2 + gridY**2 + gridZ**2)
+    bool_sphere = (radius.to('pc').value**2 > gridX**2 + gridY**2 + gridZ**2)
     return bool_sphere
 
 
@@ -363,18 +364,17 @@ class Observation:
         else:
             
             # Finding where sphere is defined
-            simpix = hiiregion.electron_density.shape[0]
-            spheremap = generate_bool_sphere(hiiregion.radius, simpix)
+            spheremap = generate_bool_sphere(hiiregion.radius, self.npix, imsize_physical)
 
             # Truncating off density outside sphere
-            sphere_density = hiiregion.density * spheremap
+            sphere_density = hiiregion.electron_density * spheremap
 
             # Calculating the emission measure for each voxel
-            vox_depth = hiiregion.radius/simpix
+            vox_depth = imsize_physical/self.npix
             em_grid = emission_measure(sphere_density,vox_depth)
             
             # Using the input velocites as gaussian line centers
-            dop_rrl_freq = doppler_freq(self.rrl_freq,self.velocity)
+            dop_rrl_freq = doppler_freq(self.rrl_freq,hiiregion.velocity)
             
             # Getting rrl opacity
             tau_rrl_3d = rrl_opacity(
@@ -389,10 +389,8 @@ class Observation:
             tau_ff_3d = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
 
             # Changing the opacities to be 2 dimensional
-            tau_rrl = np.sum(tau_rrl_3d, axis=2)
-            tau_ff = np.sum(tau_ff_3d, axis=2)
-
-            # CASE WHERE MISMATCHED SIMULATION PIXELS AND IMAGE PIXELS NOT IMPLEMENTED
+            tau_rrl = np.sum(tau_rrl_3d, axis=0)
+            tau_ff = np.sum(tau_ff_3d, axis=0)
 
 
         # Brightness temperature
@@ -438,7 +436,9 @@ class Observation:
 
 def main():
     # Creating a test region
-    testregion = HIIRegion()
+    testregion = HIIRegion(
+        distance = 4 * u.kpc,
+    )
 
     # Model nebula powered by type O6 star
     nebO6 = HIIRegion(
@@ -449,8 +449,17 @@ def main():
     )
 
     # Synthetic observation
+    impix = 300
+    testdens = np.ones((impix,impix,impix)) * 1000 * u.cm**-3
+    testvelocity = np.zeros((impix,impix,impix)) * u.km / u.s
+    testregion3d = HIIRegion(
+        electron_density = testdens,
+        velocity = testvelocity,
+        distance = 4 * u.kpc,
+    )
     obs = Observation()
     obs.observe(testregion, "testfits")
+    obs.observe(testregion3d, "testfits3d")
 
 
 if __name__ == "__main__":
