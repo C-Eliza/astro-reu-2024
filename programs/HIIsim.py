@@ -11,6 +11,7 @@ import astropy.constants as c
 from astropy.io import fits
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
+from turbustat.simulator import make_3dfield
 
 
 def thermal_fwhm(temp, nu_0):
@@ -52,7 +53,7 @@ def doppler_freq(nu_0, vel):
     Returns:
         nu -- Observed frequency (with units)
     """
-    return nu_0 * (1 + vel / c.c)
+    return nu_0 * np.sqrt((1 - vel / c.c) / (1 + vel / c.c))
 
 
 def emission_measure(density, depth):
@@ -124,13 +125,13 @@ def rrl_opacity(temp, em, nu, center_freq, fwhm_freq):
 
     Inputs:
         temp -- Electron temperature (with units)
-        em   -- 2-D array of emission measures (with units)
-        nu   -- 1-D array of frequencies at which to evaluate the opacity (with units)
-        center_freq -- Line center frequency (with units)
+        em   -- 3-D array of emission measures (with units)
+        nu   -- Frequency to evalute at (with units)
+        center_freq -- 3-D array of line center frequency (with units)
         fwhm_freq -- FWHM line width in frequency units (with units)
 
     Returns:
-        opacity -- 3-D array (shape em.shape + nu.shape) of RRL opacities (unitless)
+        opacity -- 3-D array (shape em.shape) of RRL opacities (unitless)
     """
     # Line center opacity (eq. 7.96)
     tau_center = (
@@ -141,40 +142,11 @@ def rrl_opacity(temp, em, nu, center_freq, fwhm_freq):
     )
     return (
         gaussian(
-            nu, tau_center[..., None], center_freq[..., None], fwhm_freq[..., None]
+            nu, tau_center, center_freq, fwhm_freq
         )
         .to("")
         .value
     )
-
-
-def sphere_depth(radius, imsize, impix):
-    """
-    Calculate the line-of-sight depth through a sphere on a square grid of positions.
-
-    TODO: this function may not be needed for the generalized non-homogeneous HII region case
-
-    Inputs:
-        radius -- Radius of the sphere (with units)
-        imsize -- Size of the image grid (with units; same unit as radius)
-        impix  -- Number of pixels in the x and y directions
-
-    Returns:
-        depth -- 2-D array of depths through the sphere (with units; same unit as radius)
-    """
-    # Edges of grid cells
-    grid_edges = np.linspace(-imsize / 2.0, imsize / 2.0, impix + 1, endpoint=True)
-
-    # Centroids of grid cells
-    grid_centers = grid_edges[:-1] + (grid_edges[1:] - grid_edges[:-1]) / 2.0
-
-    # Square 2D grid of centroids
-    gridX, gridY = np.meshgrid(grid_centers, grid_centers, indexing="ij")
-
-    # Distance through a sphere
-    square_depth = radius**2.0 - gridX**2.0 - gridY**2.0
-    depth = 2.0 * np.sqrt(square_depth * (square_depth > 0.0))
-    return depth
 
 
 def brightness_temp(optical_depth, temp):
@@ -228,7 +200,7 @@ def generate_bool_sphere(radius,impix,imsize):
     """
 
     # Edges of grid cells
-    grid_edges = np.linspace(-imsize.to('pc').value/2, imsize.to('pc').value/2, impix + 1, endpoint=True)
+    grid_edges = np.linspace(-imsize/2, imsize/2, impix + 1, endpoint=True)
 
     # Centroids of grid cells
     grid_centers = grid_edges[:-1] + (grid_edges[1:] - grid_edges[:-1]) / 2.0
@@ -237,9 +209,49 @@ def generate_bool_sphere(radius,impix,imsize):
     gridX, gridY, gridZ = np.meshgrid(grid_centers, grid_centers, grid_centers, indexing="ij")
 
     # The boolean sphere
-    bool_sphere = (radius.to('pc').value**2 > gridX**2 + gridY**2 + gridZ**2)
+    bool_sphere = (radius**2 > gridX**2 + gridY**2 + gridZ**2)
     return bool_sphere
 
+
+def observe(physfile,filename,beam_fwhm,noise):
+    """
+    Takes in a simulated region, then simulates an observation of it. Saves to a
+    FITS file.
+
+    Inputs:
+        physfile -- Filename of the simulated region
+        filename -- Filename to have observation saved to
+        beam_fwhm -- FWHM beam size (with units)
+        noise -- Gaussian noise added to the synthetic data cube (brightness temperature; with units)
+
+    Returns:
+        Nothing
+    """
+    hdul = fits.open(f"sim/{physfile}")
+    hdr = hdul[0].header
+    TB = hdul[0].data.T * u.K
+    pixel_size = hdr["CDELT1"] * u.deg
+    hdul.close()
+
+    # After smoothing, the noise will decrease by ~1/beam_pixels where
+    # beam_pixels = (beam_fwhm / pixel_size)^2. So we add extra noise now and
+    # then smooth it out later
+    noise_factor = (beam_fwhm / pixel_size).to("").value ** 2.0
+    TB += np.random.randn(*TB.shape) * noise * noise_factor
+
+    # Convolve with beam
+    beam_sigma = beam_fwhm / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+    beam_sigma_pix = (beam_sigma / pixel_size).to("").value
+    TB_smooth = spatial_smooth(TB, beam_sigma_pix)
+
+    # Saving to a fits file
+    hdu = fits.PrimaryHDU(TB_smooth.to(u.K).value.T)
+    hdu.header = hdr
+    hdu.header["OBJECT"] = "Synthetic HII Region Observation"
+    hdu.header["BMAJ"] = beam_fwhm.to("deg").value
+    hdu.header["BMIN"] = beam_fwhm.to("deg").value
+    hdu.writeto(f"fits/{filename}.fits", overwrite=True)
+    pass
 
 class HIIRegion:
     """
@@ -273,17 +285,15 @@ class HIIRegion:
         self.velocity = velocity
 
 
-class Observation:
+class Simulation:
     """
-    The parameters of a synthetic observation of a simulated HII region.
+    The parameters of a synthetic simulation of a simulated HII region.
     """
 
     def __init__(
         self,
         pixel_size=10.0 * u.arcsec,
         npix=300,
-        beam_fwhm=30 * u.arcsec,
-        noise=0.01 * u.K,
         nchan=200,
         channel_size=20.0 * u.kHz,
         rrl_freq=6.0 * u.GHz,
@@ -294,8 +304,6 @@ class Observation:
         Inputs:
             pixel_size -- Width of pixel in synethetic data cube (with units)
             npix -- Width of the sythetic data cube (in pixels)
-            beam_fwhm -- FWHM beam size (with units)
-            noise -- Gaussian noise added to the synthetic data cube (brightness temperature; with units)
             nchan -- Number of frequency channels
             channel_size -- Width of frequency channel (with units)
             rrl_freq -- Rest frequency of RRL transition (with units)
@@ -306,8 +314,6 @@ class Observation:
         self.pixel_size = pixel_size
         self.npix = npix
         self.imsize = self.pixel_size * self.npix
-        self.beam_fwhm = beam_fwhm
-        self.noise = noise
         self.nchan = nchan
         self.channel_size = channel_size
         self.rrl_freq = rrl_freq
@@ -322,15 +328,16 @@ class Observation:
         )
         self.velo_axis = doppler(self.rrl_freq, self.freq_axis)
 
-    def observe(self, hiiregion, filename):
+    def simulate(self, hiiregion, filename):
         """
-        Generate a synthetic radio continuum + radio recombination line observation
+        Generate a synthetic radio continuum + radio recombination line simulation
         of an HII region, and save the resulting data cube to a FITS file. The RRL
-        is placed at the center of the spectral axis.
+        is placed at the center of the spectral axis. This doesn't account for
+        noise or beam width.
 
         Inputs:
             hiiregion -- HIIRegion object to be "observed"
-            filename -- Output FITS filename
+            filename -- Output phys FITS filename
 
         Returns:
             Nothing
@@ -356,49 +363,37 @@ class Observation:
             
         # Stacking and adding together channels
         tau_rrl = np.zeros((self.npix,self.npix,self.nchan))
-        print("Solving each channel of image...")
+        print("Solving each channel of simulation...")
         for channel in tqdm(range(self.nchan)):
             single_channel_3d = rrl_opacity(
-                hiiregion.electron_temperature,
-                em_grid,
-                self.freq_axis[channel],
-                dop_rrl_freq,
-                rrl_fwhm_freq,
+                temp = hiiregion.electron_temperature,
+                em = em_grid,
+                nu = self.freq_axis[channel],
+                center_freq = dop_rrl_freq,
+                fwhm_freq = rrl_fwhm_freq,
             )
             single_channel = np.sum(single_channel_3d,axis=2)
-            tau_rrl += single_channel
+            tau_rrl[:,:,channel] = single_channel
 
         # Free-free opacity
         tau_ff_3d = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
         tau_ff = np.sum(tau_ff_3d, axis=2)
 
-
         # Brightness temperature
         TB = brightness_temp(tau_ff + tau_rrl, hiiregion.electron_temperature)
 
-        # After smoothing, the noise will decrease by ~1/beam_pixels where
-        # beam_pixels = (beam_fwhm / pixel_size)^2. So we add extra noise now and
-        # then smooth it out later
-        noise_factor = (self.beam_fwhm / self.pixel_size).to("").value ** 2.0
-        TB += np.random.randn(*TB.shape) * self.noise * noise_factor
-
-        # Convolve with beam
-        beam_sigma = self.beam_fwhm / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-        beam_sigma_pix = (beam_sigma / self.pixel_size).to("").value
-        TB_smooth = spatial_smooth(TB, beam_sigma_pix)
-
         # Saving to a fits file
-        hdu = fits.PrimaryHDU(TB_smooth.to(u.K).value.T)
-        hdu.header["OBJECT"] = "Synthetic HII Region Observation"
+        hdu = fits.PrimaryHDU(TB.to(u.K).value.T)
+        hdu.header["OBJECT"] = "Synthetic HII Region Simulation"
         hdu.header["CRVAL1"] = 0.0
         hdu.header["CRVAL2"] = 0.0
         hdu.header["CRVAL3"] = 0.0
         hdu.header["CTYPE3"] = "VELO-LSR"
         hdu.header["CTYPE1"] = "RA---TAN"
         hdu.header["CTYPE2"] = "DEC--TAN"
-        hdu.header["CRPIX1"] = TB_smooth.shape[0] / 2 + 0.5
-        hdu.header["CRPIX2"] = TB_smooth.shape[1] / 2 + 0.5
-        hdu.header["CRPIX3"] = TB_smooth.shape[2] / 2 + 0.5
+        hdu.header["CRPIX1"] = TB.shape[0] / 2 + 0.5
+        hdu.header["CRPIX2"] = TB.shape[1] / 2 + 0.5
+        hdu.header["CRPIX3"] = TB.shape[2] / 2 + 0.5
         hdu.header["CDELT3"] = (self.velo_axis[1] - self.velo_axis[0]).to("km/s").value
         hdu.header["CDELT1"] = self.pixel_size.to("deg").value
         hdu.header["CDELT2"] = self.pixel_size.to("deg").value
@@ -407,41 +402,43 @@ class Observation:
         hdu.header["CUNIT1"] = "deg"
         hdu.header["CUNIT2"] = "deg"
         hdu.header["CUNIT3"] = "km/s"
-        hdu.header["BMAJ"] = self.beam_fwhm.to("deg").value
-        hdu.header["BMIN"] = self.beam_fwhm.to("deg").value
         hdu.header["BPA"] = 0.0
         hdu.header["RESTFRQ"] = self.rrl_freq.to(u.Hz).value
-        hdu.writeto(f"fits/{filename}.fits", overwrite=True)
+        hdu.writeto(f"sim/{filename}sim.fits", overwrite=True)
+        pass
+
+
 
 
 def main():
-    # Creating a test region
-    testregion = HIIRegion(
-        distance=0.25*u.kpc,
-    )
-
-    # Model nebula powered by type O6 star
-    nebO6 = HIIRegion(
-        radius=1.25 * u.pc,
-        distance=1.0 * u.kpc,
-        electron_temperature=4e3 * u.K,
-        electron_density=200 * u.cm**-3,
-    )
-
     # Synthetic observation
-    impix = 300
-    testdens = np.ones((impix,impix,impix)) * 1000 * u.cm**-3
-    testvelocity = np.zeros((impix,impix,impix)) * u.km / u.s
+    impix = 50
+    testdens = make_3dfield(impix,powerlaw=11/3,amp=1000) * u.cm**-3
+    testdens += testdens.std()  
+    testdens[testdens.value < 0.] = 0. * u.cm**-3
+    testvelocity = make_3dfield(impix,powerlaw=5/3,amp=30) * u.km/u.s
     testregion3d = HIIRegion(
         electron_density = testdens,
         velocity = testvelocity,
         distance=0.25*u.kpc,
     )
-    obs = Observation(
-        nchan=10,
+    obs = Simulation(
+        nchan=200,
+        npix=impix,
+        pixel_size=50*u.arcsec,
     )
-    obs.observe(testregion, "testfits")
-    obs.observe(testregion3d, "testfits3d")
+    obs.simulate(testregion3d, "testfits3d")
+    observe("testfits3dsim.fits",
+            "testfits3d_200",
+            beam_fwhm=200*u.arcsec,
+            noise=0.01*u.K,
+            )
+
+    observe("testfits3dsim.fits",
+            "testfits3d_800",
+            beam_fwhm=800*u.arcsec,
+            noise=0.01*u.K,
+            )
 
 
 if __name__ == "__main__":
