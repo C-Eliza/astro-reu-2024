@@ -394,14 +394,14 @@ class Simulation:
         hdu.header["CRPIX1"] = TB.shape[0] / 2 + 0.5
         hdu.header["CRPIX2"] = TB.shape[1] / 2 + 0.5
         hdu.header["CRPIX3"] = TB.shape[2] / 2 + 0.5
-        hdu.header["CDELT3"] = (self.velo_axis[1] - self.velo_axis[0]).to("km/s").value
+        hdu.header["CDELT3"] = (self.velo_axis[1] - self.velo_axis[0]).to("m/s").value
         hdu.header["CDELT1"] = self.pixel_size.to("deg").value
         hdu.header["CDELT2"] = self.pixel_size.to("deg").value
         hdu.header["BTYPE"] = "Brightness Temperature"
         hdu.header["BUNIT"] = "K"
         hdu.header["CUNIT1"] = "deg"
         hdu.header["CUNIT2"] = "deg"
-        hdu.header["CUNIT3"] = "km/s"
+        hdu.header["CUNIT3"] = "m/s"
         hdu.header["BPA"] = 0.0
         hdu.header["RESTFRQ"] = self.rrl_freq.to(u.Hz).value
         hdu.writeto(f"sim/{filename}sim.fits", overwrite=True)
@@ -413,10 +413,10 @@ class Simulation:
 def main():
     # Synthetic observation
     impix = 50
-    testdens = make_3dfield(impix,powerlaw=11/3,amp=1000) * u.cm**-3
+    testdens = make_3dfield(impix,powerlaw=11/3,amp=1000,randomseed=1) * u.cm**-3
     testdens += testdens.std()  
     testdens[testdens.value < 0.] = 0. * u.cm**-3
-    testvelocity = make_3dfield(impix,powerlaw=5/3,amp=30) * u.km/u.s
+    testvelocity = make_3dfield(impix,powerlaw=5/3,amp=20,randomseed=1) * u.km/u.s
     testregion3d = HIIRegion(
         electron_density = testdens,
         velocity = testvelocity,
