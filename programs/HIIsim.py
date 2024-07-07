@@ -357,7 +357,7 @@ class Simulation:
         # Calculating the emission measure for each voxel
         vox_depth = imsize_physical/self.npix
         em_grid = emission_measure(sphere_density,vox_depth)
-            
+
         # Using the input velocites as gaussian line centers
         dop_rrl_freq = doppler_freq(self.rrl_freq,hiiregion.velocity)
             
@@ -407,16 +407,13 @@ class Simulation:
         hdu.writeto(f"sim/{filename}sim.fits", overwrite=True)
         pass
 
-
-
-
 def main():
     # Synthetic observation
     impix = 50
-    testdens = make_3dfield(impix,powerlaw=11/3,amp=1000,randomseed=2) * u.cm**-3
+    testdens = make_3dfield(impix,powerlaw=11/3,amp=1000,randomseed=5) * u.cm**-3
     #testdens += testdens.std()  
     #testdens[testdens.value < 0.] = 0. * u.cm**-3
-    testvelocity = make_3dfield(impix,powerlaw=5/3,amp=20,randomseed=4) * u.km/u.s
+    testvelocity = 100 * make_3dfield(impix,powerlaw=5/3,amp=200,randomseed=10) * u.km/u.s
     testregion3d = HIIRegion(
         electron_density = testdens,
         velocity = testvelocity,

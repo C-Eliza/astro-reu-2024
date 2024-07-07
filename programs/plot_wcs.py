@@ -41,12 +41,12 @@ def main(fname):
     ysize = hdu.data.shape[1]
     xcenter = xsize // 2
     ycenter = ysize // 2
-    xmin = xcenter - xsize // 2
-    ymin = ycenter - ysize // 2
-    xmax = xcenter + xsize // 2
-    ymax = ycenter + ysize // 2
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin, ymax)
+    xmin = xcenter - xsize // 4
+    ymin = ycenter - ysize // 4
+    xmax = xcenter + xsize // 4
+    ymax = ycenter + ysize // 4
+    ax.set_xlim(0, xsize)
+    ax.set_ylim(0, ysize)
 
     # plot beam
     pixsize = hdu.header['CDELT2']
@@ -72,10 +72,12 @@ def main(fname):
     cbar = fig.colorbar(cax, fraction=0.046, pad=0.04)
     cbar.set_label(r"$V_{\rm LSR}$ (km s$^{-1}$)")
 
-    fname = fname.replace('.fits', '.pdf')
+    fname = fname.replace('.fits', '.png')
     fig.savefig(fname, bbox_inches='tight')
     plt.close(fig)
 
 if __name__ == "__main__":
     main("fits/testfits3d_200_M1.fits")
     main("fits/testfits3d_800_M1.fits")
+    #main("../data/other_data/ch136.all.I.channel.clean.pbcor.imsmooth.image.linevlsr.fits")
+    #main("../data/other_data/g320.channel.uvtaper.16stack.image.imsmooth.30arcsec.pbcor.vlsr.fits")
