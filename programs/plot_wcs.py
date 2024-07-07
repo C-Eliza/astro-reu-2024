@@ -7,10 +7,17 @@ from matplotlib.patches import Ellipse
 def main(fname):
     hdu = fits.open(fname)[0]
 
+    # snip out weird values
+    print(hdu.data)
+    rms = np.nanstd(hdu.data)
+    average = np.nanmedian(hdu.data)
+    hdu.data = hdu.data + np.where(rms/5>np.abs(hdu.data), 0, np.nan)
+    print(hdu.data[0,0])
+    
     # limit color range
     vmin = np.nanpercentile(hdu.data, 1.0)
     vmax = np.nanpercentile(hdu.data, 99.0)
-    
+
     # generate world coordinate system
     wcs = WCS(hdu.header)
 
@@ -34,10 +41,10 @@ def main(fname):
     ysize = hdu.data.shape[1]
     xcenter = xsize // 2
     ycenter = ysize // 2
-    xmin = xcenter - xsize // 4
-    ymin = ycenter - ysize // 4
-    xmax = xcenter + xsize // 4
-    ymax = ycenter + ysize // 4
+    xmin = xcenter - xsize // 2
+    ymin = ycenter - ysize // 2
+    xmax = xcenter + xsize // 2
+    ymax = ycenter + ysize // 2
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
 
@@ -47,7 +54,7 @@ def main(fname):
     beam_min = hdu.header["BMIN"] / pixsize
     beam_pa = hdu.header["BPA"]
     ellipse = Ellipse(
-        (1.2*xmin, 1.2*ymin),
+        (0.3*xcenter, 0.3*ycenter),
         beam_min,
         beam_maj,
         angle=beam_pa,
@@ -71,3 +78,4 @@ def main(fname):
 
 if __name__ == "__main__":
     main("fits/testfits3d_200_M1.fits")
+    main("fits/testfits3d_800_M1.fits")
