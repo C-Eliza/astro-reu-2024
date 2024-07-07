@@ -6,17 +6,17 @@ from matplotlib.patches import Ellipse
 
 def main(fname):
     hdu = fits.open(fname)[0]
-
+    """
     # snip out weird values
     print(hdu.data)
     rms = np.nanstd(hdu.data)
     average = np.nanmedian(hdu.data)
     hdu.data = hdu.data + np.where(rms/5>np.abs(hdu.data), 0, np.nan)
     print(hdu.data[0,0])
-    
+    """ 
     # limit color range
-    vmin = np.nanpercentile(hdu.data, 1.0)
-    vmax = np.nanpercentile(hdu.data, 99.0)
+    vmin = np.nanpercentile(hdu.data, 5.0)
+    vmax = np.nanpercentile(hdu.data, 95.0)
 
     # generate world coordinate system
     wcs = WCS(hdu.header)
