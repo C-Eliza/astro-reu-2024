@@ -409,11 +409,14 @@ class Simulation:
 
 def main():
     # Synthetic observation
-    impix = 50
+    impix = 20
     testdens = make_3dfield(impix,powerlaw=11/3,amp=1000,randomseed=5) * u.cm**-3
     #testdens += testdens.std()  
     #testdens[testdens.value < 0.] = 0. * u.cm**-3
-    testvelocity = 100 * make_3dfield(impix,powerlaw=5/3,amp=200,randomseed=10) * u.km/u.s
+    testvelocity = make_3dfield(impix,powerlaw=5/3,amp=45,randomseed=10) * u.km/u.s
+    hdu = fits.PrimaryHDU(testvelocity.to("km/s").value.T)
+    hdu.writeto("debug/velocitytest.fits", overwrite=True)
+
     testregion3d = HIIRegion(
         electron_density = testdens,
         velocity = testvelocity,
@@ -422,7 +425,7 @@ def main():
     obs = Simulation(
         nchan=200,
         npix=impix,
-        pixel_size=50*u.arcsec,
+        pixel_size=50*u.arcsec/(impix/50)/(testregion3d.distance/0.25/u.kpc),
     )
     obs.simulate(testregion3d, "testfits3d")
     observe("testfits3dsim.fits",
@@ -436,7 +439,6 @@ def main():
             beam_fwhm=800*u.arcsec,
             noise=0.01*u.K,
             )
-
 
 if __name__ == "__main__":
     main()
