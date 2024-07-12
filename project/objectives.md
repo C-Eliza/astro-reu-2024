@@ -61,7 +61,7 @@
 
 ### 4. More research
 
-   **Status: New**
+   **Status: Ongoing**
 
    *Learning objective*: Familiarize yourself with background research
 
@@ -78,7 +78,7 @@
 
 ### 5. Simulating Observations of HII Regions
 
-   **Status: New**
+   **Status: COMPLETE**
 
    *Learning objective*: Apply the physics of radiative transfer
 
@@ -90,7 +90,7 @@
 
 ### 6. Simulating Observations of Turbulence
 
-   **Status: New**
+   **Status: Ongoing**
 
    *Learning objective*: Determine the observational signature of turbulence in ionized gas
 
@@ -101,11 +101,14 @@
 
    * [Turbustat](https://ui.adsabs.harvard.edu/abs/2019AJ....158....1K/abstract)
    * Code documentation: https://turbustat.readthedocs.io/en/latest/
+   * Use power law slope = 11/3 for the 3D velocity cube. This is a [Kolmogorov energy spectrum](https://articles.adsabs.harvard.edu/pdf/2003MNRAS.342..325E).
+   * Assume a constant density for now...
 
    To get you started, I suggest using Turbustat to generate a simulated box of turbulent gas, then apply the equations of radiative transfer from the ERA textbook to generate three synthetic observations:
-   1. HI spectral line (assuming the gas is fully neutral)
-   2. Radio continuum (assuming the gas is fully ionized)
-   3. Radio recombination line (assuming the gas is fully ionized)
+   1. Radio continuum (assuming the gas is fully ionized)
+   2. Radio recombination line (assuming the gas is fully ionized)
+
+   Then, generate synthetic observations of the emission with different angular resolutions (beam sizes) and re-create the analysis of [Balser et al. (2021)](https://ui.adsabs.harvard.edu/abs/2021ApJ...921..176B/abstract). Can turbulence explain the observed ionized gas kinematics?
    
    Then, use the tools of Turbustat to calculate the turbulence statistics of the synthetic observations. In particular, the following will be useful:
    * [Spatial Power Spectrum](https://turbustat.readthedocs.io/en/latest/tutorials/statistics/pspec_example.html)
@@ -115,7 +118,7 @@
 
 ### 7. Multi-transition synthesis
 
-   **Status: New**
+   **Status: Trey's Goal**
 
    *Learning objective*: Understand the technique of multi-transition synthesis
 
@@ -124,12 +127,14 @@
    <details>
    Multi-transition synthesis is a new technique to combine multiple interferometric observations of spectral lines, each with a different rest frequency and angular resolution, into a single data cube that optimizes the angular resolution and maximizes the sensitivity. Familiarize yourself with [synthesis imaging](https://casadocs.readthedocs.io/en/stable/notebooks/synthesis_imaging.html) and the underlying technique of [multi-frequency synthesis](https://ui.adsabs.harvard.edu/abs/1999ASPC..180..419S/abstract) in CASA.
 
-   In the meantime, I will compile my CASA scripts and data, and get you an account on the computing cluster.
+   ~~In the meantime, I will compile my CASA scripts and data, and get you an account on the computing cluster.~~
+
+   Trey will take the lead on this!
    </details>
 
 ### 8. Visualizing RRL and IR data
 
-   **Status: New**
+   **Status: On Hold**
 
    *Learning objective*: Generate informative data visualizations
 
@@ -137,6 +142,20 @@
 
    <details>
    As described in the telescope proposal, some of our targets have associated SOFIA data. We need to obtain these data and include them in our analysis. This is not urgent, and may require me to reach out to our collaborator, Lars.
+
+   Let's put this on the back burner for now.
    </details>
+
+### 9. Science Communication
+
+    **Status: New**
+
+    *Learning objective*: Practice effective science communication
+
+    *Criteria for success*: Develop a research presentation about your project
+
+    <details>
+    Communication is key! As you take breaks from other aspects of the project, start outlining and generating slides for your end-of-project presentation!
+    </details>
 
 
