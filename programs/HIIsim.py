@@ -376,8 +376,7 @@ class Simulation:
             tau_rrl[:,:,channel] = single_channel
 
         # Free-free opacity
-        tau_ff_3d = ff_opacity(hiiregion.electron_temperature, self.freq_axis, em_grid)
-        tau_ff = np.sum(tau_ff_3d, axis=2)
+        tau_ff = ff_opacity(hiiregion.electron_temperature, self.freq_axis, np.sum(em_grid,axis=2))
 
         # Brightness temperature
         TB = brightness_temp(tau_ff + tau_rrl, hiiregion.electron_temperature)
@@ -409,16 +408,18 @@ class Simulation:
 
 def main():
     # Synthetic observation
-    impix = 20
+    impix = 300
     testdens = make_3dfield(impix,powerlaw=11/3,amp=1000,randomseed=5) * u.cm**-3
-    #testdens += testdens.std()  
-    #testdens[testdens.value < 0.] = 0. * u.cm**-3
-    testvelocity = make_3dfield(impix,powerlaw=5/3,amp=45,randomseed=10) * u.km/u.s
+    testdens += testdens.std()  
+    testdens[testdens.value < 0.] = 0. * u.cm**-3
+    hdu = fits.PrimaryHDU(testdens.to(u.cm**-3).value.T)
+    hdu.writeto("debug/densitytest.fits", overwrite=True)
+    testvelocity = make_3dfield(impix,powerlaw=5/3,amp=20,randomseed=10) * u.km/u.s
     hdu = fits.PrimaryHDU(testvelocity.to("km/s").value.T)
     hdu.writeto("debug/velocitytest.fits", overwrite=True)
 
     testregion3d = HIIRegion(
-        electron_density = testdens,
+        electron_density = 1000*u.cm**-3,
         velocity = testvelocity,
         distance=0.25*u.kpc,
     )
@@ -427,15 +428,15 @@ def main():
         npix=impix,
         pixel_size=50*u.arcsec/(impix/50)/(testregion3d.distance/0.25/u.kpc),
     )
-    obs.simulate(testregion3d, "testfits3d")
-    observe("testfits3dsim.fits",
-            "testfits3d_200",
+    obs.simulate(testregion3d, "constdens")
+    observe("constdenssim.fits",
+            "constdens_200",
             beam_fwhm=200*u.arcsec,
             noise=0.01*u.K,
             )
 
-    observe("testfits3dsim.fits",
-            "testfits3d_800",
+    observe("constdenssim.fits",
+            "constdens_800",
             beam_fwhm=800*u.arcsec,
             noise=0.01*u.K,
             )
