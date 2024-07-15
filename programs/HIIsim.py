@@ -379,37 +379,44 @@ class Simulation:
         tau_ff = ff_opacity(hiiregion.electron_temperature, self.freq_axis, np.sum(em_grid,axis=2))
 
         # Brightness temperature
-        TB = brightness_temp(tau_ff + tau_rrl, hiiregion.electron_temperature)
+        taus = [tau_ff, tau_rrl, tau_ff+tau_rrl]
+        taunames = ["ff","rrl","both"]
+        for tau, tauname in zip(taus,taunames):
+            TB = brightness_temp(tau, hiiregion.electron_temperature)
 
-        # Saving to a fits file
-        hdu = fits.PrimaryHDU(TB.to(u.K).value.T)
-        hdu.header["OBJECT"] = "Synthetic HII Region Simulation"
-        hdu.header["CRVAL1"] = 0.0
-        hdu.header["CRVAL2"] = 0.0
-        hdu.header["CRVAL3"] = 0.0
-        hdu.header["CTYPE3"] = "VELO-LSR"
-        hdu.header["CTYPE1"] = "RA---TAN"
-        hdu.header["CTYPE2"] = "DEC--TAN"
-        hdu.header["CRPIX1"] = TB.shape[0] / 2 + 0.5
-        hdu.header["CRPIX2"] = TB.shape[1] / 2 + 0.5
-        hdu.header["CRPIX3"] = TB.shape[2] / 2 + 0.5
-        hdu.header["CDELT3"] = (self.velo_axis[1] - self.velo_axis[0]).to("km/s").value
-        hdu.header["CDELT1"] = self.pixel_size.to("deg").value
-        hdu.header["CDELT2"] = self.pixel_size.to("deg").value
-        hdu.header["BTYPE"] = "Brightness Temperature"
-        hdu.header["BUNIT"] = "K"
-        hdu.header["CUNIT1"] = "deg"
-        hdu.header["CUNIT2"] = "deg"
-        hdu.header["CUNIT3"] = "km/s"
-        hdu.header["BPA"] = 0.0
-        hdu.header["RESTFRQ"] = self.rrl_freq.to(u.Hz).value
-        hdu.writeto(f"sim/{filename}sim.fits", overwrite=True)
-        pass
+            # Saving to a fits file
+            hdu = fits.PrimaryHDU(TB.to(u.K).value.T)
+            hdu.header["OBJECT"] = "Synthetic HII Region Simulation"
+            hdu.header["CRVAL1"] = 0.0
+            hdu.header["CRVAL2"] = 0.0
+            hdu.header["CRVAL3"] = 0.0
+            hdu.header["CTYPE3"] = "VELO-LSR"
+            hdu.header["CTYPE1"] = "RA---TAN"
+            hdu.header["CTYPE2"] = "DEC--TAN"
+            hdu.header["CRPIX1"] = TB.shape[0] / 2 + 0.5
+            hdu.header["CRPIX2"] = TB.shape[1] / 2 + 0.5
+            hdu.header["CRPIX3"] = TB.shape[2] / 2 + 0.5
+            hdu.header["CDELT3"] = (self.velo_axis[1] - self.velo_axis[0]).to("km/s").value
+            hdu.header["CDELT1"] = self.pixel_size.to("deg").value
+            hdu.header["CDELT2"] = self.pixel_size.to("deg").value
+            hdu.header["BTYPE"] = "Brightness Temperature"
+            hdu.header["BUNIT"] = "K"
+            hdu.header["CUNIT1"] = "deg"
+            hdu.header["CUNIT2"] = "deg"
+            hdu.header["CUNIT3"] = "km/s"
+            hdu.header["BPA"] = 0.0
+            hdu.header["RESTFRQ"] = self.rrl_freq.to(u.Hz).value
+            hdu.writeto(f"sim/{filename+tauname}sim.fits", overwrite=True)
+            pass
 
 def main():
     # Synthetic observation
-    impix = 300
-    testdens, testvelocity = gen_turbulence(impix)
+    impix = 100
+    testdens, testvelocity = gen_turbulence(impix,
+                                            mean_density=1000*u.cm**-3,
+                                            )
+    hdu = fits.PrimaryHDU(testvelocity.to("km/s").value.T)
+    hdu.writeto("debug/velocitytest.fits", overwrite=True)
 
     testregion3d = HIIRegion(
         electron_density = testdens,
@@ -422,8 +429,14 @@ def main():
         pixel_size=50*u.arcsec/(impix/50)/(testregion3d.distance/0.25/u.kpc),
     )
     obs.simulate(testregion3d, "testregion3d")
-    observe("testregion3dsim.fits",
-            "testregion3d_200",
+    observe("testregion3dbothsim.fits",
+            "testregion3dboth_200",
+            beam_fwhm=200*u.arcsec,
+            noise=0.01*u.K,
+            )
+
+    observe("testregion3drrlsim.fits",
+            "testregion3drrl_200",
             beam_fwhm=200*u.arcsec,
             noise=0.01*u.K,
             )
