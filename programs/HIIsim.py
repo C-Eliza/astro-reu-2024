@@ -414,6 +414,8 @@ def main():
     impix = 100
     testdens, testvelocity = gen_turbulence(impix,
                                             mean_density=1000*u.cm**-3,
+                                            seed=101,
+                                            mach_number=5,
                                             )
     hdu = fits.PrimaryHDU(testvelocity.to("km/s").value.T)
     hdu.writeto("debug/velocitytest.fits", overwrite=True)
@@ -427,6 +429,7 @@ def main():
         nchan=200,
         npix=impix,
         pixel_size=50*u.arcsec/(impix/50)/(testregion3d.distance/0.25/u.kpc),
+        channel_size=40*u.kHz,
     )
     obs.simulate(testregion3d, "testregion3d")
     observe("testregion3dbothsim.fits",
