@@ -409,40 +409,64 @@ class Simulation:
             hdu.writeto(f"sim/{filename+tauname}sim.fits", overwrite=True)
             pass
 
+def split_observations(filenamebase,beam_fwhm,noise):
+    """
+    Generates observation for each of the simulated regions, between RRLs, FF, and combined.
+
+    Inputs:
+    filenamebase -- String used to generate simulation files
+    beam_fwhm -- Beam full-width half max
+    noise -- Noise to be applied
+
+    Outputs:
+    Nothing
+    """
+    tempnames = ["ff","rrl","both"]
+    for temp in tempnames:
+        observe(f"{filenamebase+temp}sim.fits",
+                f"{filenamebase+temp}_{beam_fwhm.value}",
+                beam_fwhm=beam_fwhm,
+                noise=noise,
+                )
+
+    pass
+
 def main():
     # Synthetic observation
     impix = 100
-    testdens, testvelocity = gen_turbulence(impix,
-                                            mean_density=1000*u.cm**-3,
-                                            seed=101,
-                                            mach_number=5,
-                                            )
-    hdu = fits.PrimaryHDU(testvelocity.to("km/s").value.T)
-    hdu.writeto("debug/velocitytest.fits", overwrite=True)
+    dens1, vel1 = gen_turbulence(impix,
+                                 mean_density=1000*u.cm**-3,
+                                 seed=100,
+                                 mach_number=5,
+                                 )
 
-    testregion3d = HIIRegion(
-        electron_density = testdens,
-        velocity = testvelocity,
+    dens2, vel2 = gen_turbulence(impix,
+                                 mean_density=1000*u.cm**-3,
+                                 seed=101,
+                                 mach_number=5,
+                                 )
+
+    region1 = HIIRegion(
+        electron_density = dens1,
+        velocity = vel1,
+        distance=0.25*u.kpc,
+    )
+    region2 = HIIRegion(
+        electron_density = dens2,
+        velocity = vel2,
         distance=0.25*u.kpc,
     )
     obs = Simulation(
         nchan=200,
         npix=impix,
-        pixel_size=50*u.arcsec/(impix/50)/(testregion3d.distance/0.25/u.kpc),
+        pixel_size=50*u.arcsec/(impix/50)/(region1.distance/0.25/u.kpc),
         channel_size=40*u.kHz,
     )
-    obs.simulate(testregion3d, "testregion3d")
-    observe("testregion3dbothsim.fits",
-            "testregion3dboth_200",
-            beam_fwhm=200*u.arcsec,
-            noise=0.01*u.K,
-            )
+    obs.simulate(region1, "region1")
+    obs.simulate(region2, "region2")
 
-    observe("testregion3drrlsim.fits",
-            "testregion3drrl_200",
-            beam_fwhm=200*u.arcsec,
-            noise=0.01*u.K,
-            )
+    split_observations("region1", beam_fwhm=200*u.arcsec, noise=0.01*u.K)
+    split_observations("region2", beam_fwhm=200*u.arcsec, noise=0.01*u.K)
 
 if __name__ == "__main__":
     main()
