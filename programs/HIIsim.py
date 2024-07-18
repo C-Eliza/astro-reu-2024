@@ -12,6 +12,7 @@ from astropy.io import fits
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 from gen_turbulence import gen_turbulence
+from gen_turbulence import turbstitch
 
 
 def thermal_fwhm(temp, nu_0):
@@ -438,7 +439,7 @@ def split_observations(filenamebase,beam_fwhm,noise):
 
 def main():
     # Synthetic observation
-    impix = 200
+    impix = 100
     dens1, vel1 = gen_turbulence(impix,
                                  mean_density=1000*u.cm**-3,
                                  seed=100,
@@ -446,12 +447,15 @@ def main():
                                  driving_parameter=0.75,
                                  )
 
-    dens2, vel2 = gen_turbulence(impix,
-                                 mean_density=1000*u.cm**-3,
-                                 seed=101,
-                                 mach_number=5,
-                                 driving_parameter=0.75,
-                                 )
+    #dens2 = fits.open("debug/bigdensity.fits")[0].data.T * u.cm**-3
+    #vel2 = fits.open("debug/bigvelocity.fits")[0].data.T * u.km / u.s
+    dens2, vel2 = turbstitch(impix,
+            mean_density=1000*u.cm**-3,
+            seed=100,
+            mach_number=5,
+            driving_parameter=0.75,
+            num=5,
+            )
 
     region1 = HIIRegion(
         electron_density = dens1,
