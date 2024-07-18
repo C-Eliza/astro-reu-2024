@@ -438,12 +438,20 @@ def split_observations(filenamebase,beam_fwhm,noise):
 
 def main():
     # Synthetic observation
-    impix = 50
+    impix = 200
     dens1, vel1 = gen_turbulence(impix,
+                                 mean_density=1000*u.cm**-3,
+                                 seed=100,
+                                 mach_number=5,
+                                 driving_parameter=0.75,
                                  )
 
-    dens2 = fits.open("debug/bigdensity.fits")[0].data[0:impix,0:impix] * u.cm**-3
-    vel2 = fits.open("debug/bigvelocity.fits")[0].data[0:impix,0:impix] * u.km / u.s
+    dens2, vel2 = gen_turbulence(impix,
+                                 mean_density=1000*u.cm**-3,
+                                 seed=101,
+                                 mach_number=5,
+                                 driving_parameter=0.75,
+                                 )
 
     region1 = HIIRegion(
         electron_density = dens1,
