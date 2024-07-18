@@ -439,6 +439,10 @@ def main():
                                  seed=100,
                                  mach_number=5,
                                  )
+    hdu = fits.PrimaryHDU(vel1.to("km/s").value.T)
+    hdu.writeto("debug/velocitytest.fits", overwrite=True)
+    hdu = fits.PrimaryHDU(dens1.to("cm**-3").value.T)
+    hdu.writeto("debug/densitytest.fits", overwrite=True)
 
     dens2, vel2 = gen_turbulence(impix,
                                  mean_density=1000*u.cm**-3,

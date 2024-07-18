@@ -6,6 +6,7 @@ Trey Wenger & Eliza Canales - July 2024
 
 import numpy as np
 import astropy.units as u
+from astropy.io import fits
 
 from turbustat.simulator import make_3dfield
 
@@ -63,3 +64,15 @@ def gen_turbulence(
     )
 
     return density, velocity * u.km / u.s
+
+def save_turbulence(density, velocity):
+    hdu = fits.PrimaryHDU(velocity.to("km/s").value.T)
+    hdu.writeto("debug/bigvelocity.fits", overwrite=True)
+    hdu = fits.PrimaryHDU(density.to("cm**-3").value.T)
+    hdu.writeto("debug/bigdensity.fits", overwrite=True)
+
+if __name__ == "__main__":
+    density, velocity = gen_turbulence(
+            imsize=500,
+            )
+    save_turbulence(density,velocity)
