@@ -184,7 +184,7 @@ def spatial_smooth(data_cube, radius):
     unit = data_cube.unit
     return gaussian_filter(data_cube.value, [radius, radius, 0]) * unit
 
-def generate_bool_sphere(radius,impix,imsize):
+def generate_bool_sphere(radius,impix,imsize,lospix):
     """
     Creates a 3d array of Trues and Falses to represent whether a sphere exists
     in that part of a cube with the sphere's center about the middlemost
@@ -192,8 +192,9 @@ def generate_bool_sphere(radius,impix,imsize):
 
     Inputs:
         radius -- Radius of sphere to be generated (in units)
-        impix -- Number of pixels in each axis of cube
+        impix -- Number of pixels in front face of cube
         imsize -- Physical size of image (in units)
+        lospix -- Number of pixels in line of sight direction
 
     Returns:
         bool_sphere -- Matrix mapping where sphere exists
@@ -201,12 +202,14 @@ def generate_bool_sphere(radius,impix,imsize):
 
     # Edges of grid cells
     grid_edges = np.linspace(-imsize/2, imsize/2, impix + 1, endpoint=True)
+    los_edges = np.linspace(-imsize/2, imsize/2, lospix + 1, endpoint=True)
 
     # Centroids of grid cells
     grid_centers = grid_edges[:-1] + (grid_edges[1:] - grid_edges[:-1]) / 2.0
+    los_centers = los_edges[:-1] + (los_edges[1:] - los_edges[:-1]) / 2.0
 
     # Cubic 3D grid of centroids
-    gridX, gridY, gridZ = np.meshgrid(grid_centers, grid_centers, grid_centers, indexing="ij")
+    gridX, gridY, gridZ = np.meshgrid(grid_centers, grid_centers, los_centers, indexing="ij")
 
     # The boolean sphere
     bool_sphere = (radius**2 > gridX**2 + gridY**2 + gridZ**2)
@@ -294,6 +297,7 @@ class Simulation:
         self,
         pixel_size=10.0 * u.arcsec,
         npix=300,
+        lospix=500,
         nchan=200,
         channel_size=20.0 * u.kHz,
         rrl_freq=6.0 * u.GHz,
@@ -313,6 +317,7 @@ class Simulation:
         """
         self.pixel_size = pixel_size
         self.npix = npix
+        self.lospix = lospix
         self.imsize = self.pixel_size * self.npix
         self.nchan = nchan
         self.channel_size = channel_size
@@ -349,13 +354,13 @@ class Simulation:
         rrl_fwhm_freq = thermal_fwhm(hiiregion.electron_temperature, self.rrl_freq)
 
         # Finding where sphere is defined
-        spheremap = generate_bool_sphere(hiiregion.radius, self.npix, imsize_physical)
+        spheremap = generate_bool_sphere(hiiregion.radius, self.npix, imsize_physical,self.lospix)
 
         # Truncating off density outside sphere
         sphere_density = hiiregion.electron_density * spheremap
 
         # Calculating the emission measure for each voxel
-        vox_depth = imsize_physical/self.npix
+        vox_depth = imsize_physical/self.lospix
         em_grid = emission_measure(sphere_density,vox_depth)
 
         # Using the input velocites as gaussian line centers
@@ -433,22 +438,12 @@ def split_observations(filenamebase,beam_fwhm,noise):
 
 def main():
     # Synthetic observation
-    impix = 100
+    impix = 50
     dens1, vel1 = gen_turbulence(impix,
-                                 mean_density=1000*u.cm**-3,
-                                 seed=100,
-                                 mach_number=5,
                                  )
-    hdu = fits.PrimaryHDU(vel1.to("km/s").value.T)
-    hdu.writeto("debug/velocitytest.fits", overwrite=True)
-    hdu = fits.PrimaryHDU(dens1.to("cm**-3").value.T)
-    hdu.writeto("debug/densitytest.fits", overwrite=True)
 
-    dens2, vel2 = gen_turbulence(impix,
-                                 mean_density=1000*u.cm**-3,
-                                 seed=101,
-                                 mach_number=5,
-                                 )
+    dens2 = fits.open("debug/bigdensity.fits")[0].data[0:impix,0:impix] * u.cm**-3
+    vel2 = fits.open("debug/bigvelocity.fits")[0].data[0:impix,0:impix] * u.km / u.s
 
     region1 = HIIRegion(
         electron_density = dens1,
@@ -460,14 +455,22 @@ def main():
         velocity = vel2,
         distance=0.25*u.kpc,
     )
-    obs = Simulation(
+    obs1 = Simulation(
         nchan=200,
         npix=impix,
+        lospix = dens1.shape[2],
         pixel_size=50*u.arcsec/(impix/50)/(region1.distance/0.25/u.kpc),
         channel_size=40*u.kHz,
     )
-    obs.simulate(region1, "region1")
-    obs.simulate(region2, "region2")
+    obs2 = Simulation(
+        nchan=200,
+        npix=impix,
+        lospix = dens2.shape[2],
+        pixel_size=50*u.arcsec/(impix/50)/(region1.distance/0.25/u.kpc),
+        channel_size=40*u.kHz,
+        )
+    obs1.simulate(region1, "region1")
+    obs2.simulate(region2, "region2")
 
     split_observations("region1", beam_fwhm=200*u.arcsec, noise=0.01*u.K)
     split_observations("region2", beam_fwhm=200*u.arcsec, noise=0.01*u.K)
