@@ -298,7 +298,7 @@ class Simulation:
         self,
         pixel_size=10.0 * u.arcsec,
         npix=300,
-        lospix=500,
+        lospix=300,
         nchan=200,
         channel_size=20.0 * u.kHz,
         rrl_freq=6.0 * u.GHz,
@@ -439,7 +439,7 @@ def split_observations(filenamebase,beam_fwhm,noise):
 
 def main():
     # Synthetic observation
-    impix = 100
+    impix = 300
     dens1, vel1 = gen_turbulence(impix,
                                  mean_density=1000*u.cm**-3,
                                  seed=100,
@@ -447,45 +447,21 @@ def main():
                                  driving_parameter=0.75,
                                  )
 
-    #dens2 = fits.open("debug/bigdensity.fits")[0].data.T * u.cm**-3
-    #vel2 = fits.open("debug/bigvelocity.fits")[0].data.T * u.km / u.s
-    dens2, vel2 = turbstitch(impix,
-            mean_density=1000*u.cm**-3,
-            seed=100,
-            mach_number=5,
-            driving_parameter=0.75,
-            num=5,
-            )
-
     region1 = HIIRegion(
         electron_density = dens1,
         velocity = vel1,
         distance=0.25*u.kpc,
     )
-    region2 = HIIRegion(
-        electron_density = dens2,
-        velocity = vel2,
-        distance=0.25*u.kpc,
-    )
     obs1 = Simulation(
         nchan=200,
-        npix=impix,
+        npix=dens1.shape[0],
         lospix = dens1.shape[2],
         pixel_size=50*u.arcsec/(impix/50)/(region1.distance/0.25/u.kpc),
         channel_size=40*u.kHz,
     )
-    obs2 = Simulation(
-        nchan=200,
-        npix=impix,
-        lospix = dens2.shape[2],
-        pixel_size=50*u.arcsec/(impix/50)/(region1.distance/0.25/u.kpc),
-        channel_size=40*u.kHz,
-        )
     obs1.simulate(region1, "region1")
-    obs2.simulate(region2, "region2")
 
     split_observations("region1", beam_fwhm=200*u.arcsec, noise=0.01*u.K)
-    split_observations("region2", beam_fwhm=200*u.arcsec, noise=0.01*u.K)
 
 if __name__ == "__main__":
     main()
