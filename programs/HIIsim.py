@@ -439,7 +439,7 @@ def split_observations(filenamebase,beam_fwhm,noise):
 
 def main():
     # Synthetic observation
-    impix = 300
+    impix = 100
     dens1, vel1 = gen_turbulence(impix,
                                  mean_density=1000*u.cm**-3,
                                  seed=100,
