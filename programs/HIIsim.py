@@ -183,7 +183,7 @@ def spatial_smooth(data_cube, radius):
     """
     # gaussian_filter does not support units
     unit = data_cube.unit
-    return gaussian_filter(data_cube.value, [radius, radius, 0]) * unit
+    return gaussian_filter(data_cube.value, [radius, radius, 0], mode='wrap') * unit
 
 def generate_bool_sphere(radius,impix,imsize,lospix):
     """
@@ -460,6 +460,7 @@ def main():
         channel_size=40*u.kHz,
     )
     obs1.simulate(region1, "region1")
+    print(50*u.arcsec/(impix/50)/(region1.distance/0.25/u.kpc),)
 
     split_observations("region1", beam_fwhm=200*u.arcsec, noise=0.01*u.K)
 
