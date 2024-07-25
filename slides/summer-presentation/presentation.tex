@@ -1,11 +1,11 @@
-\documentclass{beamer}
+\documentclass[aspectratio=169,compress]{beamer}
 \usetheme{Szeged}
 \usecolortheme{beaver}
 \graphicspath{ {./figures} }
 
 \title{Billowing Hydrogen}
 \subtitle{Simulating Turbulence in HII Regions}
-\author{Eliza Canales \& Trey Wenger}
+\author[Canales, Wenger]{Eliza Canales \& Trey Wenger}
 \institute[UW-Madison \& NRAO]{University of Wisconsin -- Madison \& National Radio Astronomy Observatory}
 \date{July 31st, 2024}
 \logo{
@@ -14,24 +14,51 @@
   \includegraphics[height=1.25cm]{nraologo.png}
 }
 
+\setbeamercolor{def}{fg=white,bg=darkred}
+
+\setbeamertemplate{headline}{
+  \leavevmode%
+  \hbox{\begin{beamercolorbox}[wd=\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}
+  \end{beamercolorbox}}
+  \vskip0pt%
+}
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{\begin{beamercolorbox}[wd=\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}
+  \end{beamercolorbox}}
+  \vskip0pt%
+}
+\setbeamertemplate{navigation symbols}{}
+
 \begin{document}
 
-\begin{frame}
+\begin{frame}[noframenumbering]
   \titlepage
 \end{frame}
+
+\setbeamertemplate{footline}
+{%
+  \leavevmode%
+  \hbox{\begin{beamercolorbox}[wd=.4\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}%
+  \insertshorttitle
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.4\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm plus1fil]{def}%
+    \usebeamerfont{author in head/foot}\insertshortauthor
+  \end{beamercolorbox}}%
+  \begin{beamercolorbox}[wd=.2\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}%
+  \insertshortinstitute\hfill\insertframenumber
+  \end{beamercolorbox}%
+  \vskip0pt%
+}
 
 \begin{frame}{Outline}
   \tableofcontents
 \end{frame}
+
 \section{Introduction}
 \subsection{HII Regions}
-\subsection{Emissions}
-\subsection{Radio Imaging}
-\section{test}
-
 \begin{frame}
   \frametitle{HII Regions}
-  %\column{0.5\textwidth}
   \begin{itemize}
     \item What is HII?
     \item Physical Traits
@@ -41,20 +68,54 @@
         \item A type of nebulae
       \end{itemize}
   \end{itemize}
-  %\column{0.5\textwidth}
 \end{frame}
 
+\subsection{Emissions}
 \begin{frame}
   \frametitle{Emissions}
-  %\column[0.5\textwidth]
+  \begin{itemize}
+    \item A way we observe HII regions
+    \item Free-free continuum
+    \item Radio recombination lines (RRLs)
+  \end{itemize}
 \end{frame}
 
 \begin{frame}
   \frametitle{Radio Imaging}
+  \begin{itemize}
+    \item Multiple frequencies
+    \item Doppler shift
+    \item Mapping velocity
+  \end{itemize}
 \end{frame}
 
+\subsection{Turbulence}
 \begin{frame}
-  frame
+  \frametitle{Turbulence}
+  \begin{itemize}
+    \item Special considerations
+
+  \end{itemize}
+\end{frame}
+
+\section{Motivations}
+\begin{frame}
+  \frametitle{Motivations}
+\end{frame}
+
+\section{Project Goals}
+\begin{frame}
+  \frametitle{Project Goals}
+\end{frame}
+
+\section{Results}
+\begin{frame}
+  \frametitle{Results}
+\end{frame}
+
+\section{Future Work}
+\begin{frame}
+  \frametitle{Future Work}
 \end{frame}
 
 \end{document}
