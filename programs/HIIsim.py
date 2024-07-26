@@ -5,6 +5,7 @@ from Galactic HII regions.
 Eliza Canales & Trey Wenger - Summer 2024
 """
 
+import argparse
 import numpy as np
 import astropy.units as u
 import astropy.constants as c
@@ -141,13 +142,7 @@ def rrl_opacity(temp, em, nu, center_freq, fwhm_freq):
         * (em / (u.pc * u.cm**-6))
         / (fwhm_freq / u.kHz)
     )
-    return (
-        gaussian(
-            nu, tau_center, center_freq, fwhm_freq
-        )
-        .to("")
-        .value
-    )
+    return gaussian(nu, tau_center, center_freq, fwhm_freq).to("").value
 
 
 def brightness_temp(optical_depth, temp):
@@ -183,9 +178,10 @@ def spatial_smooth(data_cube, radius):
     """
     # gaussian_filter does not support units
     unit = data_cube.unit
-    return gaussian_filter(data_cube.value, [radius, radius, 0], mode='wrap') * unit
+    return gaussian_filter(data_cube.value, [radius, radius, 0], mode="wrap") * unit
 
-def generate_bool_sphere(radius,impix,imsize,lospix):
+
+def generate_bool_sphere(radius, impix, imsize, lospix):
     """
     Creates a 3d array of Trues and Falses to represent whether a sphere exists
     in that part of a cube with the sphere's center about the middlemost
@@ -202,22 +198,24 @@ def generate_bool_sphere(radius,impix,imsize,lospix):
     """
 
     # Edges of grid cells
-    grid_edges = np.linspace(-imsize/2, imsize/2, impix + 1, endpoint=True)
-    los_edges = np.linspace(-imsize/2, imsize/2, lospix + 1, endpoint=True)
+    grid_edges = np.linspace(-imsize / 2, imsize / 2, impix + 1, endpoint=True)
+    los_edges = np.linspace(-imsize / 2, imsize / 2, lospix + 1, endpoint=True)
 
     # Centroids of grid cells
     grid_centers = grid_edges[:-1] + (grid_edges[1:] - grid_edges[:-1]) / 2.0
     los_centers = los_edges[:-1] + (los_edges[1:] - los_edges[:-1]) / 2.0
 
     # Cubic 3D grid of centroids
-    gridX, gridY, gridZ = np.meshgrid(grid_centers, grid_centers, los_centers, indexing="ij")
+    gridX, gridY, gridZ = np.meshgrid(
+        grid_centers, grid_centers, los_centers, indexing="ij"
+    )
 
     # The boolean sphere
-    bool_sphere = (radius**2 > gridX**2 + gridY**2 + gridZ**2)
+    bool_sphere = radius**2 > gridX**2 + gridY**2 + gridZ**2
     return bool_sphere
 
 
-def observe(physfile,filename,beam_fwhm,noise):
+def observe(physfile, filename, beam_fwhm, noise):
     """
     Takes in a simulated region, then simulates an observation of it. Saves to a
     FITS file.
@@ -257,6 +255,7 @@ def observe(physfile,filename,beam_fwhm,noise):
     hdu.writeto(f"fits/{filename}.fits", overwrite=True)
     pass
 
+
 class HIIRegion:
     """
     The attributes and physics of a homogeneous, isothermal, spherical HII region.
@@ -268,7 +267,7 @@ class HIIRegion:
         distance=1.0 * u.kpc,
         electron_temperature=1e4 * u.K,
         electron_density=1000 * u.cm**-3,
-        velocity=0 * u.km/u.s,
+        velocity=0 * u.km / u.s,
     ):
         """
         Initialize a new HIIRegion object.
@@ -351,43 +350,47 @@ class Simulation:
         # image size in physical units
         imsize_physical = self.imsize.to("rad").value * hiiregion.distance
 
-        #calculating thermal broadening
+        # calculating thermal broadening
         rrl_fwhm_freq = thermal_fwhm(hiiregion.electron_temperature, self.rrl_freq)
 
         # Finding where sphere is defined
-        spheremap = generate_bool_sphere(hiiregion.radius, self.npix, imsize_physical,self.lospix)
+        spheremap = generate_bool_sphere(
+            hiiregion.radius, self.npix, imsize_physical, self.lospix
+        )
 
         # Truncating off density outside sphere
         sphere_density = hiiregion.electron_density * spheremap
 
         # Calculating the emission measure for each voxel
-        vox_depth = imsize_physical/self.lospix
-        em_grid = emission_measure(sphere_density,vox_depth)
+        vox_depth = imsize_physical / self.lospix
+        em_grid = emission_measure(sphere_density, vox_depth)
 
         # Using the input velocites as gaussian line centers
-        dop_rrl_freq = doppler_freq(self.rrl_freq,hiiregion.velocity)
-            
+        dop_rrl_freq = doppler_freq(self.rrl_freq, hiiregion.velocity)
+
         # Stacking and adding together channels
-        tau_rrl = np.zeros((self.npix,self.npix,self.nchan))
+        tau_rrl = np.zeros((self.npix, self.npix, self.nchan))
         print("Solving each channel of simulation...")
         for channel in tqdm(range(self.nchan)):
             single_channel_3d = rrl_opacity(
-                temp = hiiregion.electron_temperature,
-                em = em_grid,
-                nu = self.freq_axis[channel],
-                center_freq = dop_rrl_freq,
-                fwhm_freq = rrl_fwhm_freq,
+                temp=hiiregion.electron_temperature,
+                em=em_grid,
+                nu=self.freq_axis[channel],
+                center_freq=dop_rrl_freq,
+                fwhm_freq=rrl_fwhm_freq,
             )
-            single_channel = np.sum(single_channel_3d,axis=2)
-            tau_rrl[:,:,channel] = single_channel
+            single_channel = np.sum(single_channel_3d, axis=2)
+            tau_rrl[:, :, channel] = single_channel
 
         # Free-free opacity
-        tau_ff = ff_opacity(hiiregion.electron_temperature, self.freq_axis, np.sum(em_grid,axis=2))
+        tau_ff = ff_opacity(
+            hiiregion.electron_temperature, self.freq_axis, np.sum(em_grid, axis=2)
+        )
 
         # Brightness temperature
-        taus = [tau_ff, tau_rrl, tau_ff+tau_rrl]
-        taunames = ["ff","rrl","both"]
-        for tau, tauname in zip(taus,taunames):
+        taus = [tau_ff, tau_rrl, tau_ff + tau_rrl]
+        taunames = ["ff", "rrl", "both"]
+        for tau, tauname in zip(taus, taunames):
             TB = brightness_temp(tau, hiiregion.electron_temperature)
 
             # Saving to a fits file
@@ -402,7 +405,9 @@ class Simulation:
             hdu.header["CRPIX1"] = TB.shape[0] / 2 + 0.5
             hdu.header["CRPIX2"] = TB.shape[1] / 2 + 0.5
             hdu.header["CRPIX3"] = TB.shape[2] / 2 + 0.5
-            hdu.header["CDELT3"] = (self.velo_axis[1] - self.velo_axis[0]).to("km/s").value
+            hdu.header["CDELT3"] = (
+                (self.velo_axis[1] - self.velo_axis[0]).to("km/s").value
+            )
             hdu.header["CDELT1"] = self.pixel_size.to("deg").value
             hdu.header["CDELT2"] = self.pixel_size.to("deg").value
             hdu.header["BTYPE"] = "Brightness Temperature"
@@ -415,7 +420,8 @@ class Simulation:
             hdu.writeto(f"sim/{filename+tauname}sim.fits", overwrite=True)
             pass
 
-def split_observations(filenamebase,beam_fwhm,noise):
+
+def split_observations(filenamebase, beam_fwhm, noise):
     """
     Generates observation for each of the simulated regions, between RRLs, FF, and combined.
 
@@ -427,42 +433,108 @@ def split_observations(filenamebase,beam_fwhm,noise):
     Outputs:
     Nothing
     """
-    tempnames = ["ff","rrl","both"]
+    tempnames = ["ff", "rrl", "both"]
     for temp in tempnames:
-        observe(f"{filenamebase+temp}sim.fits",
-                f"{filenamebase+temp}_{beam_fwhm.value}",
-                beam_fwhm=beam_fwhm,
-                noise=noise,
-                )
+        observe(
+            f"{filenamebase+temp}sim.fits",
+            f"{filenamebase+temp}_{beam_fwhm.value}",
+            beam_fwhm=beam_fwhm,
+            noise=noise,
+        )
 
     pass
 
-def main():
+
+def main(
+    impix=100,
+    nchan=200,
+    mean_density=1000.0,
+    mach_number=5.0,
+    driving_parameter=0.75,
+    beam_fwhm=200.0,
+    noise=0.01,
+    fnamebase="region1",
+):
     # Synthetic observation
-    impix = 100
-    dens1, vel1 = gen_turbulence(impix,
-                                 mean_density=1000*u.cm**-3,
-                                 seed=100,
-                                 mach_number=5,
-                                 driving_parameter=0.75,
-                                 )
+    dens1, vel1 = gen_turbulence(
+        impix,
+        mean_density=mean_density * u.cm**-3,
+        seed=100,
+        mach_number=mach_number,
+        driving_parameter=driving_parameter,
+    )
 
     region1 = HIIRegion(
-        electron_density = dens1,
-        velocity = vel1,
-        distance=0.25*u.kpc,
+        electron_density=dens1,
+        velocity=vel1,
+        distance=0.25 * u.kpc,
     )
+    pixel_size = 50 * u.arcsec / (impix / 50) / (region1.distance / 0.25 / u.kpc)
+    print(f"pixel_size: {pixel_size}")
     obs1 = Simulation(
-        nchan=200,
+        nchan=nchan,
         npix=dens1.shape[0],
-        lospix = dens1.shape[2],
-        pixel_size=50*u.arcsec/(impix/50)/(region1.distance/0.25/u.kpc),
-        channel_size=40*u.kHz,
+        lospix=dens1.shape[2],
+        pixel_size=pixel_size,
+        channel_size=40 * u.kHz,
     )
-    obs1.simulate(region1, "region1")
-    print(50*u.arcsec/(impix/50)/(region1.distance/0.25/u.kpc),)
+    obs1.simulate(region1, fnamebase)
+    split_observations(fnamebase, beam_fwhm=beam_fwhm * u.arcsec, noise=noise * u.K)
 
-    split_observations("region1", beam_fwhm=200*u.arcsec, noise=0.01*u.K)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Simulate HII regions with turbulence!",
+        prog="HIIsim.py",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--impix",
+        type=int,
+        default=100,
+        help="Simulation pixel dimensions (cubical)",
+    )
+    parser.add_argument(
+        "--nchan",
+        type=int,
+        default=200,
+        help="Number of frequency channels",
+    )
+    parser.add_argument(
+        "--mean_density",
+        type=float,
+        default=1000.0,
+        help="Mean electron density (cm-3)",
+    )
+    parser.add_argument(
+        "--mach_number",
+        type=float,
+        default=5.0,
+        help="Mach number",
+    )
+    parser.add_argument(
+        "--driving_parameter",
+        type=float,
+        default=0.75,
+        help="Driving parameter",
+    )
+    parser.add_argument(
+        "--beam_fwhm",
+        type=float,
+        default=200.0,
+        help="Beam FWHM (arcsec)",
+    )
+    parser.add_argument(
+        "--noise",
+        type=float,
+        default=0.01,
+        help="Noise (K)",
+    )
+    parser.add_argument(
+        "--fnamebase",
+        type=str,
+        default="region1",
+        help="Filename base name",
+    )
+    args = parser.parse_args()
+    main(**vars(args))
