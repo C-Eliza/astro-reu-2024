@@ -1,0 +1,5 @@
+Nebula image: M20 | Trifid Nebula HII Region in Sagittarius 6° from Kaus Borealis (top of the teapot) taken by R Jay GaBany
+FF: https://astronoo.com/images/lumiere/absorption-et-emission.jpg
+RRL: https://en.wikipedia.org/wiki/Bremsstrahlung#/media/File:Bremsstrahlung.svg
+Turbulence image: https://www.advancedsciencenews.com/wp-content/uploads/2023/07/swirl-g52ac5d4ac_1280.jpg 
+Turbustat generic: https://turbustat.readthedocs.io/en/latest/generating_test_data.html#three-dimensional-fields 

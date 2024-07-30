@@ -1,9 +1,13 @@
 \documentclass[aspectratio=169,compress]{beamer}
+\usepackage{bookmark}
+\usepackage{hyperref}
 \usetheme{Szeged}
 \usecolortheme{beaver}
 \graphicspath{ {./figures} }
 
-\title{Billowing Hydrogen}
+\newcommand\teeny{\fontsize{3pt}{3.6pt}\selectfont}
+
+\title[\color{white} Billowing Hydrogen]{Billowing Hydrogen}
 \subtitle{Simulating Turbulence in HII Regions}
 \author[Canales, Wenger]{Eliza Canales \& Trey Wenger}
 \institute[UW-Madison \& NRAO]{University of Wisconsin -- Madison \& National Radio Astronomy Observatory}
@@ -29,6 +33,12 @@
   \vskip0pt%
 }
 \setbeamertemplate{navigation symbols}{}
+
+\hypersetup{
+    colorlinks=true,
+    urlcolor=cyan,
+    }
+\urlstyle{same}
 
 \begin{document}
 
@@ -59,47 +69,80 @@
 \subsection{HII Regions}
 \begin{frame}
   \frametitle{HII Regions}
-  \begin{itemize}
-    \item What is HII?
-    \item Physical Traits
+  \begin{columns}
+    \begin{column}{0.5\textwidth}%%
       \begin{itemize}
-        \item Powered by hot stars
-        \item Can range from AU to parsecs
-        \item A type of nebulae
+        \item What is an HII Region?
+        \item Physical Traits
+          \begin{itemize}
+            \item Powered by hot stars
+            \item Can range from AU to parsecs
+            \item A type of nebulae
+          \end{itemize}
       \end{itemize}
-  \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}%%
+      \teeny
+      \includegraphics[width=0.7\textwidth]{figures/nebula.jpg}
+      {\teeny\\ Image of an HII region, the Trifid Nebula.}
+      {\teeny\\ Nebula image: M20 | Trifid Nebula HII Region in Sagittarius 6° from Kaus Borealis (top of the teapot)} 
+      {\teeny\\ taken by R Jay GaBany}
+      
+    \end{column}
+  \end{columns}
 \end{frame}
 
 \subsection{Emissions}
 \begin{frame}
   \frametitle{Emissions}
-  \begin{itemize}
-    \item A way we observe HII regions
-    \item Free-free continuum
-    \item Radio recombination lines (RRLs)
-  \end{itemize}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \includegraphics[width=0.35\textwidth]{figures/bremms.png}
+      \includegraphics[width=0.55\textwidth]{figures/rrl.jpg}\\
+      {\teeny Image 1: Process in which the free-free continuum is created.}
+      {\teeny\\ Image 2: Process in which radio recombination lines are created.}
+      {\teeny\\ Free-free emission: \url{https://en.wikipedia.org/wiki/Bremsstrahlung\#/media/File:Bremsstrahlung.svg}}
+      {\teeny\\ Radio recombination lines: \url{https://astronoo.com/images/lumiere/absorption-et-emission.jpg}}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item A way we observe HII regions
+        \item Why use radio?
+        \item Free-free continuum
+        \item Radio recombination lines (RRLs)
+      \end{itemize}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 \subsection{Radio Imaging}
 \begin{frame}
   \frametitle{Radio Imaging}
-  \begin{itemize}
-    \item Multiple frequencies
-    \item Doppler shift
-    \item Mapping velocity
-  \end{itemize}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item Multiple frequencies
+        \item Doppler shift
+        \item Mapping velocity
+          \begin{itemize}
+            \item Velocity compared to Local Standard of Rest (VLSR)
+            \item Velocity line width
+          \end{itemize}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      column
+    \end{column}
+  \end{columns}
 \end{frame}
 
-\subsection{Turbulence}
+\section{Emission Line-Broadening}
 \begin{frame}
-  \frametitle{Turbulence}
+  \frametitle{Emission Line-Broadening}
   \begin{itemize}
-    \item Using turbustat
-      \begin{itemize}
-        \item Python package
-        \item Cubes of density and velocity
-      \end{itemize}
-    \item Special considerations made for RRL case
+    \item Thermal motion
+    \item Rotation
+    \item Turbulence
   \end{itemize}
 \end{frame}
 
@@ -113,20 +156,22 @@
   \end{itemize}
 \end{frame}
 
+\subsection{Turbulence}
+\begin{frame}
+  \frametitle{Turbulence}
+  \begin{itemize}
+    \item More chaotic line broadening
+    \item 
+  \end{itemize}
+\end{frame}
+
 \section{Project Goals}
 \begin{frame}
   \frametitle{Project Goals}
   \begin{itemize}
     \item Simulate turbulence in HII regions
-      \begin{itemize}
-        \item Calculating emission for each voxel
-        \item Overlaying densities and velocities
-      \end{itemize}
     \item Test different turbulence parameters
-      \begin{itemize}
-        \item Comparing to reality
-        \item Use statistical models to compare
-      \end{itemize}
+    \item Comparing to reality
   \end{itemize}
 \end{frame}
 
@@ -161,7 +206,9 @@
 \begin{frame}
   \frametitle{Conclusion}
   \begin{itemize}
-    \item Turbulence can explain what we see!
+    \item Could turbulence explain HII region behavior?
+    \item Tested with simulation
+    \item At first glance, it is a viable model
   \end{itemize}
 \end{frame}
 
