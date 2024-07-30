@@ -454,6 +454,7 @@ def main(
     beam_fwhm=200.0,
     noise=0.01,
     fnamebase="region1",
+    constant_density=False,
 ):
     # Synthetic observation
     dens1, vel1 = gen_turbulence(
@@ -463,6 +464,9 @@ def main(
         mach_number=mach_number,
         driving_parameter=driving_parameter,
     )
+
+    if constant_density:
+        dens1 = mean_density * np.ones(np.shape(dens1)) * u.cm**-3
 
     region1 = HIIRegion(
         electron_density=dens1,
@@ -535,6 +539,12 @@ if __name__ == "__main__":
         type=str,
         default="region1",
         help="Filename base name",
+    )
+    parser.add_argument(
+        "--constant_density",
+        type=bool,
+        default=False,
+        help="Consant region density",
     )
     args = parser.parse_args()
     main(**vars(args))
