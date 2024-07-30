@@ -13,9 +13,9 @@
 \institute[UW-Madison \& NRAO]{University of Wisconsin -- Madison \& National Radio Astronomy Observatory}
 \date{July 31st, 2024}
 \logo{
-  \includegraphics[height=1.25cm]{uwlogo.png}
+  \includegraphics[height=1.25cm]{figures/uwlogo.png}
   \hspace{2mm}
-  \includegraphics[height=1.25cm]{nraologo.png}
+  \includegraphics[height=1.25cm]{figures/nraologo.png}
 }
 
 \setbeamercolor{def}{fg=white,bg=darkred}
@@ -131,7 +131,9 @@
       \end{itemize}
     \end{column}
     \begin{column}{0.5\textwidth}
-      column
+      \includegraphics[width=0.8\textwidth]{figures/noturbspec.png}
+      \includegraphics[width=0.8\textwidth]{figures/demospec.png}
+      {\teeny\\ Image 3: Spectrum without any motion compared to a spectrum with motion.}
     \end{column}
   \end{columns}
 \end{frame}
@@ -139,11 +141,24 @@
 \section{Emission Line-Broadening}
 \begin{frame}
   \frametitle{Emission Line-Broadening}
-  \begin{itemize}
-    \item Thermal motion
-    \item Rotation
-    \item Turbulence
-  \end{itemize}
+  \begin{columns}
+    \begin{column}{0.3\linewidth}
+      \begin{itemize}
+        \item Thermal motion
+        \item Rotation
+        \item Turbulence
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.7\linewidth}
+      \centering
+      \includegraphics[height=1in]{figures/fire.png}\\
+      \includegraphics[height=1in]{figures/cycle.png}
+      \includegraphics[height=1in]{figures/wind.png}
+      {\teeny\\ Fire: \url{https://www.vecteezy.com/png/19787026-fire-icon-on-transparent-background}}
+      {\teeny\\ Cycle: \url{https://www.vecteezy.com/png/18723264-roundabout-directional-arrow-sign-on-transparent-background}}
+      {\teeny\\ Wind: \url{https://www.vecteezy.com/png/22183351-hand-drawn-doodle-vaporize-icon}}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 \section{Motivations}
@@ -154,15 +169,42 @@
     \item Later observations show a more complex story
     \item Can turbulence explain this behavior?
   \end{itemize}
+  \centering
+  \vspace{3mm}
+  \includegraphics[width=0.3\linewidth]{figures/bigrealVLSR.png}
+  \includegraphics[width=0.3\linewidth]{figures/smallrealVLSR.png}
+  {\teeny\\ Showing the how the same object can act differently based on the beam width.}
+
 \end{frame}
 
-\subsection{Turbulence}
+\begin{frame}
+  \frametitle{Motivations}
+  \begin{itemize}
+    \item Similar programs don't use RRLs
+  \end{itemize}
+  \centering
+  \vspace{3mm}
+  \includegraphics[width=0.5\linewidth]{figures/density_sq.png}
+  {\teeny\\ Comparing optically thin tracers, one of density (right) and one of density squared (left).}
+\end{frame}
+
+\section{Turbulence}
 \begin{frame}
   \frametitle{Turbulence}
-  \begin{itemize}
-    \item More chaotic line broadening
-    \item 
-  \end{itemize}
+  \begin{columns}
+    \begin{column}{0.6\linewidth}
+      \centering
+      \includegraphics[width=0.8\linewidth]{figures/turbulence.jpg}\\
+      {\teeny Image attribution: \url{https://www.advancedsciencenews.com/wp-content/uploads/2023/07/swirl-g52ac5d4ac_1280.jpg}}
+    \end{column}
+    \begin{column}{0.4\linewidth}
+      \begin{itemize}
+        \item Not just swirls
+        \item Subsonic and supersonic
+        \item Ways of flowing
+      \end{itemize}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 \section{Project Goals}
@@ -178,28 +220,48 @@
 \section{Results}
 \begin{frame}
   \frametitle{Results}
-  Images here
+  \includegraphics[width=0.6\linewidth]{figures/blurringeffect.png}
 \end{frame}
 
 \begin{frame}
   \frametitle{Results}
-  \begin{itemize}
-    \item Similarity to reality
+  \includegraphics[width=0.6\linewidth]{figures/blurringcomp.png}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Results}
+  \begin{columns}
+    \begin{column}{0.5\linewidth}
       \begin{itemize}
-        \item Turbulence looking like angular momentum
-        \item Similar velocity scales
+        \item Similarity to reality
+          \begin{itemize}
+            \item Turbulence looking like angular momentum
+            \item Similar velocity scales
+          \end{itemize}
       \end{itemize}
-  \end{itemize}
+    \end{column}
+    \begin{column}{0.5\linewidth}
+      \includegraphics[width=0.6\linewidth]{figures/smallrealVLSR.png}
+      \includegraphics[width=0.4\linewidth]{figures/standard_M1.png}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 \section{Future Work}
 \begin{frame}
   \frametitle{Future Work}
-  \begin{itemize}
-    \item Comparing with more radio data
-    \item Refining simulation
-    \item Testing under various conditions
-  \end{itemize}
+  \begin{columns}
+    \begin{column}{0.5\linewidth}
+      \includegraphics[width=0.7\linewidth]{figures/lagslides.png}
+    \end{column}
+    \begin{column}{0.5\linewidth}
+      \begin{itemize}
+        \item Comparing with more radio data
+        \item Refining simulation
+        \item Testing under various conditions
+      \end{itemize}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 \section{Conclusion}
