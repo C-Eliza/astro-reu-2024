@@ -77,7 +77,6 @@ def main(fname):
     plt.close(fig)
 
 if __name__ == "__main__":
-    main("fits/testfits3d_200_M1.fits")
-    main("fits/testfits3d_800_M1.fits")
+    main("fits/widerbasicrrl_800.0_M1.fits")
     #main("../data/other_data/ch136.all.I.channel.clean.pbcor.imsmooth.image.linevlsr.fits")
     #main("../data/other_data/g320.channel.uvtaper.16stack.image.imsmooth.30arcsec.pbcor.vlsr.fits")

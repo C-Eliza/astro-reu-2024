@@ -16,7 +16,9 @@ def gen_VLSR(path):
     )
     masked_data = smoothed_data * threshold_mask
     moments = bm.collapse_first(velax=velax, data=masked_data, rms=rms)
+    moments2 = bm.collapse_second(velax=velax, data=masked_data, rms=rms)
     bm.save_to_FITS(moments=moments, method="first", path=path)
+    bm.save_to_FITS(moments=moments2, method="second", path=path)
 
 
 def get_velocity_data(path):
@@ -54,17 +56,19 @@ def main(fnames):
     plt.close(fig)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Calculate velocity statistics",
-        prog="VLSR.py",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument(
-        "fnames",
-        type=str,
-        nargs="+",
-        help="RRL data cubes",
-    )
-    args = parser.parse_args()
-    main(**vars(args))
+#if __name__ == "__main__":
+#    parser = argparse.ArgumentParser(
+#        description="Calculate velocity statistics",
+#        prog="VLSR.py",
+#        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+#    )
+#    parser.add_argument(
+#        "fnames",
+#        type=str,
+#        nargs="+",
+#        help="RRL data cubes",
+#    )
+#    args = parser.parse_args()
+#    main(**vars(args))
+
+gen_VLSR("fits/widerbasicrrl_800.0.fits")
