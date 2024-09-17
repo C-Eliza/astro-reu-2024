@@ -20,10 +20,10 @@ def gen_turbulence(
 ):
     """
     Generate a turbulent electron density and radial velocity field, assuming the two are
-    not correlated (see https://doi.org/10.1093/mnras/stad2195), assuming
-    relationships between the two as described by https://doi.org/10.1093/mnras/stad1631,
-    and assuming Kolmogorov turbulence (power spectrum slope = 11/3 for density and 5/3 for
-    velocity).
+    not correlated (see https://doi.org/10.1093/mnras/stad2195), assuming the velocity
+    is described by https://doi.org/10.1093/mnras/stad1631, the density 
+    https://arxiv.org/pdf/1206.4524 and assuming Kolmogorov turbulence (power spectrum 
+    slope = 11/3 for density and 5/3 for velocity).
 
     Inputs:
         imsize :: integer
@@ -49,15 +49,14 @@ def gen_turbulence(
     # 1D turbulent velocity dispersion
     v_turb = mach_number * c_s / np.sqrt(3.0)
 
-    # fractional density (density / mean_density) dispersion
-    frac_n_turb = mach_number * driving_parameter
+    # logarithmic density (density / mean_density) dispersion
+    log_n_turb = np.sqrt(np.log(1 + driving_parameter**2 * mach_number**2))
 
     # generate cubes
-    frac_density = make_3dfield(
-        imsize, powerlaw=11.0 / 3, amp=frac_n_turb, randomseed=seed
+    log_density_frac = make_3dfield(
+        imsize, powerlaw=11.0 / 3, amp=log_n_turb, randomseed=seed
     )
-    density = mean_density * (1.0 + frac_density)
-    density[density < 0.0] = 0.0
+    density = np.exp(np.log(mean_density) + log_density_frac)
 
     velocity = make_3dfield(
         imsize, powerlaw=5.0 / 3.0, amp=v_turb.to("km/s").value, randomseed=seed + 1
