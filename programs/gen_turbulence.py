@@ -56,7 +56,7 @@ def gen_turbulence(
     log_density_frac = make_3dfield(
         imsize, powerlaw=11.0 / 3, amp=log_n_turb, randomseed=seed
     )
-    density = np.exp(np.log(mean_density) + log_density_frac)
+    density = np.exp(np.log(mean_density / u.cm**-3) + log_density_frac) * u.cm**-3
 
     velocity = make_3dfield(
         imsize, powerlaw=5.0 / 3.0, amp=v_turb.to("km/s").value, randomseed=seed + 1
