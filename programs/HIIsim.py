@@ -163,12 +163,6 @@ def spatial_smooth(data_cube, radius):
     """
     Smooth a data cube along the spatial axes using a Gaussian filter.
 
-    TODO: We typically think of "telescope beams" as the FWHM of the beam rather than
-    the standard deviation. Too, we usually think of the beam in terms of an angular
-    scale instead of a pixel scale. This function should probably take as input the FWHM
-    of the smoothing kernel in angular units and then convert that to a standard deviation
-    in pixel units to be supplied to gaussian_filter.
-
     Inputs:
         data_cube -- 3-D array of data to smooth. The first two axes are the spatial axes.
         radius    -- Standard deviation of the gaussian kernel (in pixels)
