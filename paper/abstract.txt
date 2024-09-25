@@ -1,0 +1,6 @@
+Abstract for submission to AAS 245
+Eliza Canales and Trey Wenger
+
+During this project, we set out to determine if modeling turbulence can explain the observations we get of HII regions. Prior research has led to the hypothesis that rotation could be what explains a gradient behavior of the velocity map of the sky. However, newer observations have shown much more going on in the HII regions, with much more detailed structure not explainable by the mass motions of rotation alone. Instead, we suspect that what we see can instead be explained by turbulence. There are two major points to be covered by this project. First, we take what we know about turbulence and then use that to simulate the effects of turbulence in an HII region. We apply an analysis technique to the simulated region to find the emergent properties. Then, we apply the same techniques to the newer data in order to see if the simulated region is a valid model. Thus far, we have found that the scales of velocity needed in turbulence to produce such observations are realistic (~Mach 5). Further research is being carried out in order to apply more analysis techniques. 
+
+This work was supported by the National Science Foundation's REU program in Astrophysics through NSF award AST-2150222 and the Project Radial NSF award EES-2013080.
