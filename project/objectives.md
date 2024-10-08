@@ -134,7 +134,7 @@
 
 ### 8. Visualizing RRL and IR data
 
-   **Status: On Hold**
+   **Status: Canceled**
 
    *Learning objective*: Generate informative data visualizations
 
@@ -148,7 +148,7 @@
 
 ### 9. Science Communication
 
-    **Status: New**
+    **Status: COMPLETE**
 
     *Learning objective*: Practice effective science communication
 
@@ -158,4 +158,23 @@
     Communication is key! As you take breaks from other aspects of the project, start outlining and generating slides for your end-of-project presentation!
     </details>
 
+### 10. Finalizing Analysis
+
+    **Status: New**
+
+    *Learning objective*: Practice finalizing a project
+
+    *Criteria for success*: Generate "publication-ready" figures
+
+    <details>
+    It's time to wrap up the project! We identified three important tasks:
+    
+    1. Finalize analysis methods -- look to the other turbulence papers and decide what modes of analysis we should pursue (i.e., power spectra analysis, velocity channel analysis, etc.)
+    2. Implement those analysis methods in the code
+    3. Generate publication-ready figures with the results
+    4. Investigate what we can "learn" from our observations of real HII regions
+
+    For the last task, we discussed specifically looking at how the imposed Mach number affects the radio recombination line observations, such as the magnitude of variations in the moment 0 map.
+    Generate a range of simulations and explore how the model parameters affect the synthetic observations.
+    </details>
 
