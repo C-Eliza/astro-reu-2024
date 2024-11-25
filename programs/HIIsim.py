@@ -481,7 +481,7 @@ class Simulation:
             pass
 
 
-def split_observations(filenamebase, beam_fwhm, noise):
+def split_observations(filenamebase, beam_fwhm, noise, rrl_only):
     """
     Generates observation for each of the simulated regions, between RRLs, FF, and combined.
 
@@ -493,14 +493,23 @@ def split_observations(filenamebase, beam_fwhm, noise):
     Outputs:
     Nothing
     """
-    tempnames = ["ff", "rrl", "both"]
-    for temp in tempnames:
+    if(rrl_only):
         observe(
-            f"{filenamebase+temp}sim.fits",
-            f"{filenamebase+temp}_{beam_fwhm.value}",
+            f"{filenamebase}rrlsim.fits",
+            f"{filenamebase}rrl_{beam_fwhm.value}",
             beam_fwhm=beam_fwhm,
             noise=noise,
         )
+        pass
+    else:
+        tempnames = ["ff", "rrl", "both"]
+        for temp in tempnames:
+            observe(
+                f"{filenamebase+temp}sim.fits",
+                f"{filenamebase+temp}_{beam_fwhm.value}",
+                beam_fwhm=beam_fwhm,
+                noise=noise,
+            )
 
     pass
 
@@ -546,7 +555,7 @@ def main(
     )
     obs1.simulate(region1, fnamebase, use_GPU, rrl_only)
     for fwhm in beam_fwhm:
-        split_observations(fnamebase, beam_fwhm=fwhm * u.arcsec, noise=noise * u.K)
+        split_observations(fnamebase, beam_fwhm=fwhm * u.arcsec, noise=noise * u.K, rrl_only=rrl_only)
 
 
 if __name__ == "__main__":
