@@ -232,7 +232,7 @@ def gaussian_GPU(em, nu, center_freq, fwhm_freq, tau_center):
         center_freq.shape[1],
         nu.shape[0]
     ))
-    for i in nu.shape:
+    for i in range(nu.shape[0]):
         tau_rrl[:,:,i] = np.sum(tau_center * np.exp(-4.0 * np.log(2.0) * (nu[i] - center_freq) ** 2.0 / fwhm_freq**2.0), axis=2)
     return(tau_rrl)
 
@@ -403,12 +403,11 @@ class Simulation:
         dop_rrl_freq = doppler_freq(self.rrl_freq, hiiregion.velocity)
 
         # Stacking and adding together channels
-        tau_rrl = np.empty((self.npix, self.npix, self.nchan))
         if(use_GPU):
             line_center_3d = center_rrl_opacity_GPU(
                 temp = hiiregion.electron_temperature.to("K").value,
                 em = em_grid.to("pc cm**-6").value,
-                fwhm_freq = rrl_fwhm_freq.to("GHz").value,
+                fwhm_freq = rrl_fwhm_freq.to("kHz").value,
             )
             tau_rrl = gaussian_GPU(
                 em = em_grid.to("pc cm**-6").value,
@@ -419,6 +418,7 @@ class Simulation:
             )  
 
         else:
+            tau_rrl = np.empty((self.npix, self.npix, self.nchan))
             print("Solving each channel of simulation...")
             line_center_3d = center_rrl_opacity(
                 temp=hiiregion.electron_temperature,
