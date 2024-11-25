@@ -13,7 +13,6 @@ from astropy.io import fits
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 from gen_turbulence import gen_turbulence
-from gen_turbulence import turbstitch
 
 
 def thermal_fwhm(temp, nu_0):
@@ -159,7 +158,7 @@ def brightness_temp(optical_depth, temp):
     return temp * (1 - np.exp(-optical_depth))
 
 
-def spatial_smooth(data_cube, radius):
+def data_spatial_smooth(data_cube, radius):
     """
     Smooth a data cube along the spatial axes using a Gaussian filter.
 
@@ -172,7 +171,23 @@ def spatial_smooth(data_cube, radius):
     """
     # gaussian_filter does not support units
     unit = data_cube.unit
-    return gaussian_filter(data_cube.value, [radius, radius, 0], mode="wrap") * unit
+    return gaussian_filter(data_cube.value, [radius, radius, 0], mode="constant", cval=0) * unit
+
+
+def noise_spatial_smooth(data_cube, radius):
+    """
+    Smooth noise along the spatial axes using a Gaussian filter.
+
+    Inputs:
+        data_cube -- 3-D array of data to smooth. The first two axes are the spatial axes.
+        radius    -- Standard deviation of the gaussian kernel (in pixels)
+
+    Returns:
+        smooth_data_cube -- 3-D array of spatially-smoothed data
+    """
+    # gaussian_filter does not support units
+    unit = data_cube.unit
+    return gaussian_filter(data_cube.value, [radius, radius, 0], mode="reflect") * unit
 
 
 def generate_bool_sphere(radius, impix, imsize, lospix):
@@ -233,12 +248,13 @@ def observe(physfile, filename, beam_fwhm, noise):
     # beam_pixels = (beam_fwhm / pixel_size)^2. So we add extra noise now and
     # then smooth it out later
     noise_factor = (beam_fwhm / pixel_size).to("").value ** 2.0
-    TB += np.random.randn(*TB.shape) * noise * noise_factor
+    noise = np.random.randn(*TB.shape) * noise * noise_factor
 
     # Convolve with beam
     beam_sigma = beam_fwhm / (2.0 * np.sqrt(2.0 * np.log(2.0)))
     beam_sigma_pix = (beam_sigma / pixel_size).to("").value
-    TB_smooth = spatial_smooth(TB, beam_sigma_pix)
+    TB_smooth = data_spatial_smooth(TB, beam_sigma_pix)
+    TB_smooth += noise_spatial_smooth(noise, beam_sigma_pix)
 
     # Saving to a fits file
     hdu = fits.PrimaryHDU(TB_smooth.to(u.K).value.T)
@@ -477,7 +493,8 @@ def main(
         channel_size=40 * u.kHz,
     )
     obs1.simulate(region1, fnamebase)
-    split_observations(fnamebase, beam_fwhm=beam_fwhm * u.arcsec, noise=noise * u.K)
+    for fwhm in beam_fwhm:
+        split_observations(fnamebase, beam_fwhm=fwhm * u.arcsec, noise=noise * u.K)
 
 
 if __name__ == "__main__":
@@ -519,7 +536,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--beam_fwhm",
         type=float,
-        default=200.0,
+        nargs="+",
+        default=[200.0],
         help="Beam FWHM (arcsec)",
     )
     parser.add_argument(
