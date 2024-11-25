@@ -13,6 +13,7 @@ from astropy.io import fits
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 from gen_turbulence import gen_turbulence
+from numba import njit
 
 
 def thermal_fwhm(temp, nu_0):
@@ -120,7 +121,7 @@ def gaussian(x, amp, center, fwhm):
     return amp * np.exp(-4.0 * np.log(2.0) * (x - center) ** 2.0 / fwhm**2.0)
 
 
-def rrl_opacity(temp, em, nu, center_freq, fwhm_freq):
+def center_rrl_opacity(temp, em, center_freq, fwhm_freq):
     """
     Calculate the radio recombination line opacity. Equation 7.96 from Condon & Ransom ERA textbook.
 
@@ -141,7 +142,7 @@ def rrl_opacity(temp, em, nu, center_freq, fwhm_freq):
         * (em / (u.pc * u.cm**-6))
         / (fwhm_freq / u.kHz)
     )
-    return gaussian(nu, tau_center, center_freq, fwhm_freq).to("").value
+    return tau_center
 
 
 def brightness_temp(optical_depth, temp):
@@ -223,6 +224,27 @@ def generate_bool_sphere(radius, impix, imsize, lospix):
     bool_sphere = radius**2 > gridX**2 + gridY**2 + gridZ**2
     return bool_sphere
 
+
+@njit
+def gaussian_GPU(em, nu, center_freq, fwhm_freq, tau_center):
+    tau_rrl = np.empty((
+        center_freq.shape[0],
+        center_freq.shape[1],
+        nu.shape[0]
+    ))
+    for i in nu.shape:
+        tau_rrl[:,:,i] = np.sum(tau_center * np.exp(-4.0 * np.log(2.0) * (nu[i] - center_freq) ** 2.0 / fwhm_freq**2.0), axis=2)
+    return(tau_rrl)
+
+
+@njit
+def center_rrl_opacity_GPU(temp, em, fwhm_freq):
+     return (
+        1.92e3
+        * (temp) ** (-5.0 / 2.0)
+        * (em)
+        / (fwhm_freq)
+    )
 
 def observe(physfile, filename, beam_fwhm, noise):
     """
@@ -343,7 +365,9 @@ class Simulation:
         )
         self.velo_axis = doppler(self.rrl_freq, self.freq_axis)
 
-    def simulate(self, hiiregion, filename):
+    
+
+    def simulate(self, hiiregion, filename, use_GPU, rrl_only):
         """
         Generate a synthetic radio continuum + radio recombination line simulation
         of an HII region, and save the resulting data cube to a FITS file. The RRL
@@ -379,27 +403,53 @@ class Simulation:
         dop_rrl_freq = doppler_freq(self.rrl_freq, hiiregion.velocity)
 
         # Stacking and adding together channels
-        tau_rrl = np.zeros((self.npix, self.npix, self.nchan))
-        print("Solving each channel of simulation...")
-        for channel in tqdm(range(self.nchan)):
-            single_channel_3d = rrl_opacity(
+        tau_rrl = np.empty((self.npix, self.npix, self.nchan))
+        if(use_GPU):
+            line_center_3d = center_rrl_opacity_GPU(
+                temp = hiiregion.electron_temperature.to("K").value,
+                em = em_grid.to("pc cm**-6").value,
+                fwhm_freq = rrl_fwhm_freq.to("GHz").value,
+            )
+            tau_rrl = gaussian_GPU(
+                em = em_grid.to("pc cm**-6").value,
+                nu = self.freq_axis.to("GHz").value,
+                center_freq = dop_rrl_freq.to("GHz").value,
+                fwhm_freq = rrl_fwhm_freq.to("GHz").value,
+                tau_center = line_center_3d,
+            )  
+
+        else:
+            print("Solving each channel of simulation...")
+            line_center_3d = center_rrl_opacity(
                 temp=hiiregion.electron_temperature,
                 em=em_grid,
-                nu=self.freq_axis[channel],
                 center_freq=dop_rrl_freq,
                 fwhm_freq=rrl_fwhm_freq,
             )
-            single_channel = np.sum(single_channel_3d, axis=2)
-            tau_rrl[:, :, channel] = single_channel
+            for channel in tqdm(range(self.nchan)):
+                single_channel = np.sum(
+                    gaussian(
+                        x = self.freq_axis[channel],
+                        amp = line_center_3d,
+                        center = dop_rrl_freq,
+                        fwhm = rrl_fwhm_freq,
+                    ).to("").value, axis=2)
+                tau_rrl[:, :, channel] = single_channel
 
         # Free-free opacity
-        tau_ff = ff_opacity(
+        if(not rrl_only):
+            tau_ff = ff_opacity(
             hiiregion.electron_temperature, self.freq_axis, np.sum(em_grid, axis=2)
-        )
+            )
 
         # Brightness temperature
-        taus = [tau_ff, tau_rrl, tau_ff + tau_rrl]
-        taunames = ["ff", "rrl", "both"]
+        if(not rrl_only):
+            taus = [tau_ff, tau_rrl, tau_ff + tau_rrl]
+            taunames = ["ff", "rrl", "both"]
+        else:
+            taus = [tau_rrl]
+            taunames = ["rrl"]
+
         for tau, tauname in zip(taus, taunames):
             TB = brightness_temp(tau, hiiregion.electron_temperature)
 
@@ -465,6 +515,8 @@ def main(
     noise=0.01,
     fnamebase="region1",
     constant_density=False,
+    use_GPU=False,
+    rrl_only=False,
 ):
     # Synthetic observation
     dens1, vel1 = gen_turbulence(
@@ -492,7 +544,7 @@ def main(
         pixel_size=pixel_size,
         channel_size=40 * u.kHz,
     )
-    obs1.simulate(region1, fnamebase)
+    obs1.simulate(region1, fnamebase, use_GPU, rrl_only)
     for fwhm in beam_fwhm:
         split_observations(fnamebase, beam_fwhm=fwhm * u.arcsec, noise=noise * u.K)
 
@@ -554,9 +606,18 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--constant_density",
-        type=bool,
-        default=False,
+        action="store_true",
         help="Consant region density",
+    )
+    parser.add_argument(
+        "--use_GPU",
+        action="store_true",
+        help="Use GPU for simulation"
+    )
+    parser.add_argument(
+        "--rrl_only",
+        action="store_true",
+        help="Only calculate the RRLs"
     )
     args = parser.parse_args()
     main(**vars(args))
