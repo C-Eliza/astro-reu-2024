@@ -118,7 +118,7 @@ def calc_pa(theta, e_theta):
     return pa, e_pa
 
 
-def fit(image,moment):
+def fit(data,e_data,data3,velax,header):
     """
     Fit a plane to a FITS image.
 
@@ -131,37 +131,17 @@ def fit(image,moment):
     #
     # Get data
     #
-    hdu = fits.open(image)[0]
-    hpbw = hdu.header['BMAJ']*3600
-
-    data3, velax = bm.load_cube(image)
-    print("Data cube loaded.")
-    rms = bm.estimate_RMS(data3, N=5)
-    mask = bm.get_threshold_mask(data=data3,clip=20.0)
-    if(moment==0):
-        momentmap = bm.collapse_zeroth(velax=velax, data=mask*data3, rms=rms)
-    elif(moment==1):
-        momentmap = bm.collapse_first(velax=velax, data=mask*data3, rms=rms)
-    elif(moment==2):
-        momentmap = bm.collapse_second(velax=velax, data=mask*data3, rms=rms)
-
-
-    wcs = WCS(hdu.header).celestial
-    xaxis = np.arange(hdu.header['NAXIS1']-1, -1, -1)
+    hpbw = header['BMAJ']*3600
+    wcs = WCS(header).celestial
+    xaxis = np.arange(header['NAXIS1']-1, -1, -1)
     xaxis = xaxis - len(xaxis)/2.0
-    yaxis = np.arange(hdu.header['NAXIS2'])
+    yaxis = np.arange(header['NAXIS2'])
     yaxis = yaxis - len(yaxis)/2.0
-    data = momentmap[0]
-    plt.imshow(data)
-    plt.savefig("sigmatest.png")
-    #e_data = fits.open(e_image)[0].data
-    e_data = momentmap[1]
     ygrid, xgrid = np.meshgrid(yaxis, xaxis, indexing='ij')
-    good = ~np.isnan(data) * e_data > 0
+    good = (~np.isnan(data)) * (e_data > 0)
     beam_area = (
-        np.pi * (hpbw / 3600.0 / hdu.header['CDELT2'])**2.0 /
+        np.pi * (hpbw / 3600.0 / header['CDELT2'])**2.0 /
         (4.0 * np.log(2.0)))
-    print("Moment map loaded.")
     #
     # Prepare for fit
     #
@@ -174,7 +154,7 @@ def fit(image,moment):
     dist2 = (fit_x[:, None] - fit_x)**2.0 + (fit_y[:, None] - fit_y)**2.0
     # correlation coefficient
     kernel = np.exp(-0.5 * dist2 / (hpbw**2.0/3600.0**2.0/(
-        hdu.header['CDELT2']**2.0 * 8.0*np.log(2.0))))
+        header['CDELT2']**2.0 * 8.0*np.log(2.0))))
     # truncate kernel at FWHM
     kernel[kernel < 0.5] = 0.0
     # covariance matrix
@@ -182,7 +162,6 @@ def fit(image,moment):
     inv_sigma = np.linalg.inv(sigma)
     _, log_det_sigma = np.linalg.slogdet(sigma)
     cov_dot_data = np.linalg.solve(sigma, fit_data)
-    print("Fit prepared.")
     #
     # Design matrices
     #
@@ -201,7 +180,6 @@ def fit(image,moment):
         popt_const, (fit_x, fit_y), fit_data, inv_sigma, log_det_sigma)
     rmse_const = calc_rmse_const(
         popt_const, (fit_x, fit_y), fit_data)
-    print("Constant value model fit.")
     #
     # Fit plane model
     #
@@ -222,9 +200,8 @@ def fit(image,moment):
         np.nansum((data - np.nanmean(data))**2.0)
     # get gradient and position angle
     gradient, e_gradient = calc_gradient(
-        popt_plane, perr_plane, hdu.header['CDELT2']*3600.0)
+        popt_plane, perr_plane, header['CDELT2']*3600.0)
     pa, e_pa = calc_pa(popt_plane, perr_plane)
-    print("Plane model fit.")
 
     return rmse_plane
 

@@ -25,7 +25,7 @@ def get_power_law(filename,moment,verbose):
     hdu = fits.open(filename)[0]
     data, velax = bm.load_cube(filename)
     rms = bm.estimate_RMS(data, N=5)
-    mask = bm.get_threshold_mask(data=data,clip=2.0)
+    mask = bm.get_threshold_mask(data=data,clip=20.0)
     if(moment==0):
         momentmap = bm.collapse_zeroth(velax=velax, data=mask*data, rms=rms)
     elif(moment==1):
@@ -34,10 +34,7 @@ def get_power_law(filename,moment,verbose):
         momentmap = bm.collapse_second(velax=velax, data=mask*data, rms=rms)
 
     pspec = PowerSpectrum(momentmap, header=hdu.header)
-    if(verbose):
-        pspec.run(xunit=u.arcsec**-1,high_cut=1/(hdu.header['BMAJ']*u.deg),verbose=True) #High cut based on beam
-    else:
-        pspec.run(xunit=u.arcsec**-1,high_cut=1/(hdu.header['BMAJ']*u.deg)) #High cut based on beam
+    pspec.run(xunit=u.arcsec**-1,high_cut=1/(hdu.header['BMAJ']*u.deg),verbose=verbose) #High cut based on beam
 
     return pspec
 
