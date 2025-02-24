@@ -90,7 +90,7 @@
 
 ### 6. Simulating Observations of Turbulence
 
-   **Status: Ongoing**
+   **Status: COMPLETE**
 
    *Learning objective*: Determine the observational signature of turbulence in ionized gas
 
@@ -160,7 +160,7 @@
 
 ### 10. Finalizing Analysis
 
-    **Status: New**
+    **Status: Ongoing**
 
     *Learning objective*: Practice finalizing a project
 
@@ -178,3 +178,46 @@
     Generate a range of simulations and explore how the model parameters affect the synthetic observations.
     </details>
 
+### 11. Specific Figures
+
+    **Status: New**
+
+    *Learning objective*: Practice finalizing a project
+
+    *Criteria for success*: Generate "publication-ready" figures
+
+    <details>
+    We identified some figures to create that demonstrate the
+    variation in derived quantities (i.e., turbustat outputs, standard
+    deviations, etc.) as a function of the Mach number times driving
+    parameter and resolution. Create publication-ready versions of
+    these figures.
+
+    Also, for a given simulation type (i.e., Mach number times driving
+    parameter, resolution point), generate a figure that summarizes
+    the measured statistic (i.e., plot the spectral power vs. spatial
+    frequency data for all of the simulations of that type, as well
+    as the "best fit" line returned by turbustat, as well as some
+    visualization of the uncertainty (i.e., a shaded region around
+    the line).
+
+    We will pick some of these to include in the paper to demonstrate
+    your analysis!
+    </details>
+
+### 12. Outline Paper
+
+    **Status: New**
+
+    *Learning objective*: Practice writing a scientific manuscript
+
+    *Criteria for success*: Generate a draft outline for the paper
+
+    <details>
+    I have shared with you the paper on Overleaf! Currently it
+    is filled with a template and demonstration of my writing
+    style. Edit this manuscript and create a draft outline for
+    our paper! Feel free to follow the template as closely or
+    loosely as you like. Also feel free to suggest some catchy
+    titles!
+    </details>

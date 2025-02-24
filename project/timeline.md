@@ -1,6 +1,6 @@
 # Project Objectives and When They Should be Complete
 
-### Week of 09/27
+### To-Do
 
 *Programming:*
 - [X] Clean up code
