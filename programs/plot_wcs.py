@@ -3,20 +3,24 @@ from astropy.io import fits
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
+from matplotlib.colors import LogNorm
+from matplotlib.colors import Normalize
+import argparse 
 
-def main(fname):
+def main(fname,cubemode):
     hdu = fits.open(fname)[0]
-    """
-    # snip out weird values
-    print(hdu.data)
-    rms = np.nanstd(hdu.data)
-    average = np.nanmedian(hdu.data)
-    hdu.data = hdu.data + np.where(rms/5>np.abs(hdu.data), 0, np.nan)
-    print(hdu.data[0,0])
-    """ 
+    if cubemode:
+        data = hdu.data[int(hdu.data.shape[0]/2)]
+        xsize = hdu.data.shape[1]
+        ysize = hdu.data.shape[2]
+    else:
+        data = hdu.data
+        xsize = hdu.data.shape[0]
+        ysize = hdu.data.shape[1]
+
     # limit color range
-    vmin = np.nanpercentile(hdu.data, 5.0)
-    vmax = np.nanpercentile(hdu.data, 95.0)
+    vmin = np.nanpercentile(data, 5.0)
+    vmax = np.nanpercentile(data, 95.0)
 
     # generate world coordinate system
     wcs = WCS(hdu.header)
@@ -25,20 +29,17 @@ def main(fname):
     fig = plt.figure()
     ax = plt.subplot(projection=wcs.celestial)
     cax = ax.imshow(
-        hdu.data,
+        np.abs(data) if cubemode else data,
         origin='lower',
         interpolation='none',
         cmap='inferno',
-        vmin=vmin,
-        vmax=vmax
+        norm = LogNorm(vmin=0.1,vmax=vmax) if cubemode else Normalize(vmin=vmin,vmax=vmax)
     )
     ax.coords[0].set_major_formatter("hh:mm:ss")
     ax.set_xlabel("RA (J2000)")
     ax.set_ylabel("Declination (J2000)")
 
     # zoom in
-    xsize = hdu.data.shape[0]
-    ysize = hdu.data.shape[1]
     xcenter = xsize // 2
     ycenter = ysize // 2
     xmin = xcenter - xsize // 4
@@ -53,8 +54,9 @@ def main(fname):
     beam_maj = hdu.header["BMAJ"] / pixsize
     beam_min = hdu.header["BMIN"] / pixsize
     beam_pa = hdu.header["BPA"]
+    beam_scale = beam_maj / xsize
     ellipse = Ellipse(
-        (0.3*xcenter, 0.3*ycenter),
+        ((0.1+beam_scale)*xcenter, (0.1+beam_scale)*ycenter),
         beam_min,
         beam_maj,
         angle=beam_pa,
@@ -70,13 +72,33 @@ def main(fname):
     # N.B. the values for "fraction" and "pad" are "magic numbers":
     # they "always work" in my experience
     cbar = fig.colorbar(cax, fraction=0.046, pad=0.04)
-    cbar.set_label(r"$V_{\rm LSR}$ (km s$^{-1}$)")
+    if "M1" in fname: 
+        cbar.set_label(r"$V_{\rm LSR}$ (km s$^{-1}$)")
+    elif "M2" in fname:
+        cbar.set_label(r"$\Delta V$ (km s$^{-1}$)")
+    else:
+        cbar.set_label(r"$T_b$ (Absolute K)")
 
     fname = fname.replace('.fits', '.png')
     fig.savefig(fname, bbox_inches='tight')
     plt.close(fig)
 
 if __name__ == "__main__":
-    main("fits/widerbasicrrl_800.0_M1.fits")
-    #main("../data/other_data/ch136.all.I.channel.clean.pbcor.imsmooth.image.linevlsr.fits")
-    #main("../data/other_data/g320.channel.uvtaper.16stack.image.imsmooth.30arcsec.pbcor.vlsr.fits")
+    parser = argparse.ArgumentParser(
+        description="Makes pictures of moment maps",
+        prog="plot_wcs.py",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "fname",
+        type=str,
+        default="region1",
+        help="Filename",
+    )
+    parser.add_argument(
+        "--cubemode",
+        action="store_true",
+        help="Is this a datacube?",
+    )
+    args = parser.parse_args()
+    main(**vars(args))

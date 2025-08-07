@@ -269,7 +269,7 @@ def observe(physfile, filename, beam_fwhm, noise):
     # After smoothing, the noise will decrease by ~1/beam_pixels where
     # beam_pixels = (beam_fwhm / pixel_size)^2. So we add extra noise now and
     # then smooth it out later
-    noise_factor = (beam_fwhm / pixel_size).to("").value ** 2.0
+    noise_factor = (beam_fwhm / pixel_size).to("").value
     noise = np.random.randn(*TB.shape) * noise * noise_factor
 
     # Convolve with beam
@@ -286,6 +286,44 @@ def observe(physfile, filename, beam_fwhm, noise):
     hdu.header["BMIN"] = beam_fwhm.to("deg").value
     hdu.writeto(f"fits/{filename}.fits", overwrite=True)
     pass
+
+def observe_no_save(input_hdu, beam_fwhm, noise):
+    """
+    Takes in a simulated region, then simulates an observation of it. Saves to a
+    FITS file.
+
+    Inputs:
+        hdu --  HDU for HII region simulation
+        beam_fwhm -- FWHM beam size (with units)
+        noise -- Gaussian noise added to the synthetic data cube (brightness temperature; with units)
+
+    Returns:
+        Nothing
+    """
+    hdr = input_hdu.header
+    TB = input_hdu.data.T * u.K
+    pixel_size = hdr["CDELT1"] * u.deg
+
+    # After smoothing, the noise will decrease by ~1/beam_pixels where
+    # beam_pixels = (beam_fwhm / pixel_size)^2. So we add extra noise now and
+    # then smooth it out later
+    noise_factor = (beam_fwhm / pixel_size).to("").value
+    noise = np.random.randn(*TB.shape) * noise * noise_factor
+
+    # Convolve with beam
+    beam_sigma = beam_fwhm / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+    beam_sigma_pix = (beam_sigma / pixel_size).to("").value
+    TB_smooth = data_spatial_smooth(TB, beam_sigma_pix)
+    TB_smooth += noise_spatial_smooth(noise, beam_sigma_pix)
+
+    # Making observation and returning
+    hdu = fits.PrimaryHDU(TB_smooth.to(u.K).value.T)
+    hdu.header = hdr
+    hdu.header["OBJECT"] = "Synthetic HII Region Observation"
+    hdu.header["BMAJ"] = beam_fwhm.to("deg").value
+    hdu.header["BMIN"] = beam_fwhm.to("deg").value
+    return hdu
+
 
 
 class HIIRegion:
@@ -367,7 +405,7 @@ class Simulation:
 
     
 
-    def simulate(self, hiiregion, filename, use_GPU, rrl_only):
+    def simulate(self, hiiregion, filename, use_GPU, rrl_only, no_save=False, quiet=False):
         """
         Generate a synthetic radio continuum + radio recombination line simulation
         of an HII region, and save the resulting data cube to a FITS file. The RRL
@@ -377,9 +415,10 @@ class Simulation:
         Inputs:
             hiiregion -- HIIRegion object to be "observed"
             filename -- Output phys FITS filename
+            no_save -- Boolean to return header and list of brightness temps instead of saving it
 
         Returns:
-            Nothing
+            Nothing, unless no_save is true
         """
         # image size in physical units
         imsize_physical = self.imsize.to("rad").value * hiiregion.distance
@@ -419,14 +458,15 @@ class Simulation:
 
         else:
             tau_rrl = np.empty((self.npix, self.npix, self.nchan))
-            print("Solving each channel of simulation...")
+            if(quiet==False):
+                print("Solving each channel of simulation...")
             line_center_3d = center_rrl_opacity(
                 temp=hiiregion.electron_temperature,
                 em=em_grid,
                 center_freq=dop_rrl_freq,
                 fwhm_freq=rrl_fwhm_freq,
             )
-            for channel in tqdm(range(self.nchan)):
+            for channel in tqdm(range(self.nchan),disable=quiet):
                 single_channel = np.sum(
                     gaussian(
                         x = self.freq_axis[channel],
@@ -449,6 +489,36 @@ class Simulation:
         else:
             taus = [tau_rrl]
             taunames = ["rrl"]
+
+        if(no_save):
+            hdul = fits.HDUList()
+            for i in range(len(taus)): 
+                TB = brightness_temp(taus[i], hiiregion.electron_temperature)
+                hdul.append(fits.PrimaryHDU(TB.T.to(u.K).value))
+                hdul[i].header["OBJECT"] = "Synthetic HII Region Simulation"
+                hdul[i].header["CRVAL1"] = 0.0
+                hdul[i].header["CRVAL2"] = 0.0
+                hdul[i].header["CRVAL3"] = 0.0
+                hdul[i].header["CTYPE3"] = "VELO-LSR"
+                hdul[i].header["CTYPE1"] = "RA---TAN"
+                hdul[i].header["CTYPE2"] = "DEC--TAN"
+                hdul[i].header["CRPIX1"] = TB.shape[0] / 2 + 0.5
+                hdul[i].header["CRPIX2"] = TB.shape[1] / 2 + 0.5
+                hdul[i].header["CRPIX3"] = TB.shape[2] / 2 + 0.5
+                hdul[i].header["CDELT3"] = (
+                    (self.velo_axis[1] - self.velo_axis[0]).to("km/s").value
+                )
+                hdul[i].header["CDELT1"] = self.pixel_size.to("deg").value
+                hdul[i].header["CDELT2"] = self.pixel_size.to("deg").value
+                hdul[i].header["BTYPE"] = "Brightness Temperature"
+                hdul[i].header["BUNIT"] = "K"
+                hdul[i].header["CUNIT1"] = "deg"
+                hdul[i].header["CUNIT2"] = "deg"
+                hdul[i].header["CUNIT3"] = "km/s"
+                hdul[i].header["BPA"] = 0.0
+                hdul[i].header["RESTFRQ"] = self.rrl_freq.to(u.Hz).value
+            return hdul
+
 
         for tau, tauname in zip(taus, taunames):
             TB = brightness_temp(tau, hiiregion.electron_temperature)
@@ -477,6 +547,8 @@ class Simulation:
             hdu.header["CUNIT3"] = "km/s"
             hdu.header["BPA"] = 0.0
             hdu.header["RESTFRQ"] = self.rrl_freq.to(u.Hz).value
+            if(no_save):
+                return hdu, taus
             hdu.writeto(f"sim/{filename+tauname}sim.fits", overwrite=True)
             pass
 
@@ -513,6 +585,30 @@ def split_observations(filenamebase, beam_fwhm, noise, rrl_only):
 
     pass
 
+def split_observations_no_save(sim_hdul, beam_fwhm, noise):
+    """
+    Generates observation for each of the simulated regions, between RRLs, FF, and combined.
+
+    Inputs:
+    filenamebase -- String used to generate simulation files
+    beam_fwhm -- Beam full-width half max
+    noise -- Noise to be applied
+
+    Outputs:
+    Nothing
+    """
+    obs_hdul = fits.HDUList()
+    for sim_hdu in sim_hdul:
+        obs_hdul.append(
+                observe_no_save(
+                    sim_hdu,
+                    beam_fwhm=beam_fwhm,
+                    noise=noise,
+                    )
+                )
+
+    return obs_hdul
+
 
 def main(
     impix=100,
@@ -526,12 +622,13 @@ def main(
     constant_density=False,
     use_GPU=False,
     rrl_only=False,
+    seed=100,
 ):
     # Synthetic observation
     dens1, vel1 = gen_turbulence(
         impix,
         mean_density=mean_density * u.cm**-3,
-        seed=100,
+        seed=seed,
         mach_number=mach_number,
         driving_parameter=driving_parameter,
     )
@@ -627,6 +724,12 @@ if __name__ == "__main__":
         "--rrl_only",
         action="store_true",
         help="Only calculate the RRLs"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=100,
+        help="Seed for the simulation"
     )
     args = parser.parse_args()
     main(**vars(args))

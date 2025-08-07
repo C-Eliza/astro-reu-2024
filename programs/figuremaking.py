@@ -23,8 +23,8 @@ def plotStats(array, title):
 
 def main(filebase):
 
-    seeds=['0','1','2','3','4']
-    mds=['0.5', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5']
+    seeds=['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19']
+    mds=['0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0']
     reses=['100.0','200.0','300.0','400.0','500.0','600.0']
 
     #Prepare histogram
@@ -52,6 +52,9 @@ def main(filebase):
     meanM2 = np.mean(allmeanM2,axis=2)
     stdmeanM2 = np.std(allmeanM2,axis=2)
     #Plot it
+    hdul = fits.open(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M2.fits')
+    pspec1 = PowerSpectrum.load_results(filebase+'_s'+seeds[0]+'_md'+mds[int(len(mds)/2)]+'rrl_'+reses[int(len(reses)/2)]+'_M1.pkl')
+    pspec1.plot_fit()
     plotStats(pspecslope1,"Average 1D Power Slope")
     plotStats(meanM2,"Average of Moment 2")
     plotStats(mediandM2,"Median Uncertainty of Moment 2")
@@ -60,7 +63,7 @@ def main(filebase):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Calculates properties of HII images and moment maps",
-        prog="getproperties.py",
+        prog="figuremaking.py",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
