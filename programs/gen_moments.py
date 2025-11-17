@@ -149,12 +149,12 @@ def analyze(sim_hdul, simul, beam_fwhm, noise, filename):
     moment2 /= u.K
     dmoment2 /= u.K
 
-    moment0[moment0<3*rms*simul.nchan*u.K*u.km/u.s] = np.NaN
-    moment1[np.isnan(moment0)] = np.NaN
-    moment2[np.isnan(moment0)] = np.NaN
-    dmoment0[np.isnan(moment0)] = np.NaN
-    dmoment1[np.isnan(moment0)] = np.NaN
-    dmoment2[np.isnan(moment0)] = np.NaN
+    moment0[moment0<3*rms*simul.nchan*u.K*u.km/u.s] = np.nan
+    moment1[np.isnan(moment0)] = np.nan
+    moment2[np.isnan(moment0)] = np.nan
+    dmoment0[np.isnan(moment0)] = np.nan
+    dmoment1[np.isnan(moment0)] = np.nan
+    dmoment2[np.isnan(moment0)] = np.nan
 
     save_moment(moment0,dmoment0,obs_hdul[0].header,filename,"zeroth")
     save_moment(moment1,dmoment1,obs_hdul[0].header,filename,"first")
@@ -180,13 +180,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--impix",
         type=int,
-        default=200,
+        default=256,
         help="Simulation pixel dimensions (cubical)",
     )
     parser.add_argument(
         "--nchan",
         type=int,
-        default=200,
+        default=256,
         help="Number of frequency channels",
     )
     parser.add_argument(

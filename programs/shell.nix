@@ -18,10 +18,12 @@ pkgs.mkShell{
             format = "pyproject";
             build-system = [ setuptools ];
             pname = "turbustat";
-            version = "1.3";
-            src = fetchPypi {
-              inherit pname version;
-              sha256 = "sha256-aYy9SbGJ8OkFmHZpemTPSQkghK7SpZ647Br08FzzPY0=";
+            version = "v1.4.dev5+gc837780";
+            src = pkgs.fetchFromGitHub {
+              owner = "Astroua";
+              rev = "adac77bd17ae5b6c74705a997fa8e7d5b26d5b9e";
+              repo = "TurbuStat";
+              hash = "sha256-OoVFkoRkDGE2R9OIc28xNvT9sCe3MtTvqZCObAC6nOk=";
             };
             nativeBuildInputs = [
               oldest-supported-numpy
