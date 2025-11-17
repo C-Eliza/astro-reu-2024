@@ -4,3 +4,4 @@
 *.log
 *.synctex.gz
 programs/fits
+programs/__pycache__
