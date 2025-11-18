@@ -5,3 +5,8 @@
 *.synctex.gz
 programs/fits
 programs/__pycache__
+slides/research1-presentation/figures/.comments
+slides/research1-presentation/figures/.DS_Store
+slides/research1-presentation/presentation.nav
+slides/research1-presentation/presentation.snm
+slides/research1-presentation/presentation.toc
