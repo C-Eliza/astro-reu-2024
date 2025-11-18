@@ -1,0 +1,309 @@
+\documentclass[aspectratio=169,compress]{beamer}
+\usepackage{bookmark}
+\usepackage{hyperref}
+\usetheme{Szeged}
+\usecolortheme{seahorse}
+\graphicspath{ {./figures} }
+
+\definecolor{nmtblue}{HTML}{0C2753}
+\definecolor{nmtorange}{HTML}{78290C}
+\definecolor{nmtmid}{HTML}{6275AB}
+\definecolor{nmtlight}{HTML}{BCCEFF}
+
+\newcommand\teeny{\fontsize{3pt}{3.6pt}\selectfont}
+
+\title[\color{nmtlight} Billowing Hydrogen]{\color{nmtblue} Billowing Hydrogen}
+\subtitle{\color{nmtblue} Simulating Turbulence in HII Regions}
+\author[Canales, Wenger, Svoboda]{Eliza Canales, Trey Wenger, \& Brian Svoboda}
+\institute[NMT, CSUChico, \& NRAO]{New Mexico Tech, California State University Chico, \& National Radio Astronomy Observatory}
+\date{November 20th, 2025}
+\logo{
+  \includegraphics[height=1.25cm]{nmt.png}
+  \hspace{2mm}
+  \includegraphics[trim = 75 75 75 75,height=1.25cm]{csuchico.png}
+  \hspace{2mm}
+  \includegraphics[height=1.25cm]{nraologo.png}
+}
+
+\setbeamercolor{def}{fg=nmtlight,bg=nmtblue}
+
+\setbeamertemplate{headline}{
+  \leavevmode%
+  \hbox{\begin{beamercolorbox}[wd=\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}
+  \end{beamercolorbox}}
+  \vskip0pt%
+}
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{\begin{beamercolorbox}[wd=\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}
+  \end{beamercolorbox}}
+  \vskip0pt%
+}
+\setbeamertemplate{navigation symbols}{}
+
+\hypersetup{
+    colorlinks=true,
+    urlcolor=cyan,
+    }
+\urlstyle{same}
+
+\begin{document}
+
+\begin{frame}[noframenumbering]
+  \titlepage
+\end{frame}
+
+\setbeamertemplate{footline}
+{%
+  \leavevmode%
+  \hbox{\begin{beamercolorbox}[wd=.4\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}%
+  \insertshorttitle
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.4\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm plus1fil]{def}%
+    \usebeamerfont{author in head/foot}\insertshortauthor
+  \end{beamercolorbox}}%
+  \begin{beamercolorbox}[wd=.2\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}%
+  \hfill\insertframenumber
+  \end{beamercolorbox}%
+  \vskip0pt%
+}
+
+\begin{frame}
+  \frametitle{HII Regions}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}%%
+      \begin{itemize}
+        \item What is an HII Region?
+        \item Physical Traits
+          \begin{itemize}
+            \item Powered by hot stars
+            \item Can range from AU to parsecs
+            \item A type of nebulae
+          \end{itemize}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}%%
+      \teeny
+      \includegraphics[width=0.6\textwidth]{nebula.jpg}
+      {\teeny\\ Image of an HII region, the Trifid Nebula.}
+      {\teeny\\ Nebula image: M20 | Trifid Nebula HII Region in Sagittarius 6° from Kaus Borealis (top of the teapot)} 
+      {\teeny\\ taken by R Jay GaBany}
+      
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Emissions}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \includegraphics[width=0.55\textwidth]{rrl.jpg}
+      {\teeny\\ Image 2: Process in which radio recombination lines are created.}
+      {\teeny\\ Radio recombination lines: \url{https://astronoo.com/images/lumiere/absorption-et-emission.jpg}}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item A way we observe HII regions
+        \item Why use radio?
+        \item Radio recombination lines (RRLs)
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Emissions}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \includegraphics[width=0.8\textwidth]{rrlspectrum.png}
+			{\teeny\\ Typical radio recombination line spectrum. 1051 erg less: the Galactic H II region OA 184 - Scientific Figure on ResearchGate. Available from:\\ \url{https://www.researchgate.net/figure/Radio-recombination-line-emission-from-OA-184-This-is-a-composite-spectrum-of-seven\_fig1\_44090151} [accessed 17 Nov 2025]}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item A way we observe HII regions
+        \item Why use radio?
+        \item Radio recombination lines (RRLs)
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Radio Imaging}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item Multiple frequencies
+        \item Doppler shift
+        \item Velocity compared to Local Standard of Rest (VLSR)
+        \item Velocity line width
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \includegraphics[width=0.8\textwidth]{rrlspectrum.png}
+      {\teeny\\ Radio recombination line to discuss how velocity is mapped.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Radio Imaging}
+  \begin{columns}
+    \begin{column}{0.4\textwidth}
+      \begin{itemize}
+        \item Multiple frequencies
+        \item Doppler shift
+        \item Velocity compared to Local Standard of Rest (VLSR)
+        \item Velocity line width
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      \centering
+      \includegraphics[width=0.45\textwidth]{run_s1_md3.5rrl_50.0_M1.png}
+      \includegraphics[width=0.45\textwidth]{run_s1_md3.5rrl_50.0_M2.png}
+      {\teeny\\ First and second moment maps of an HII region.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Emission Line-Broadening}
+  \begin{columns}
+    \begin{column}{0.3\linewidth}
+      \begin{itemize}
+        \item Thermal motion
+        \item Bulk motion
+          \begin{itemize}
+            \item Outflow
+            \item Expansion
+            \item Rotation
+          \end{itemize}
+        \item Turbulence
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.7\linewidth}
+      \centering
+      \includegraphics[height=1in]{figures/fire.png}\\
+      \includegraphics[height=1in]{figures/cycle.png}
+      \includegraphics[height=1in]{figures/wind.png}
+      {\teeny\\ Fire: \url{https://www.vecteezy.com/png/19787026-fire-icon-on-transparent-background}}
+      {\teeny\\ Cycle: \url{https://www.vecteezy.com/png/18723264-roundabout-directional-arrow-sign-on-transparent-background}}
+      {\teeny\\ Wind: \url{https://www.vecteezy.com/png/22183351-hand-drawn-doodle-vaporize-icon}}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Motivations}
+  \begin{itemize}
+    \item Previous work had shown what looked like rotation
+    \item Later observations show a more complex story
+    \item Can turbulence explain this behavior?
+  \end{itemize}
+  \centering
+  \vspace{3mm}
+  \includegraphics[width=0.3\linewidth]{bigrealVLSR.png}
+  \includegraphics[trim = 30 30 30 30, width=0.3\linewidth]{smallrealVLSR.png}
+  {\teeny\\ Showing the how the same object can act differently based on the beam width.}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Turbulence}
+  \begin{columns}
+    \begin{column}{0.6\linewidth}
+      \centering
+      \includegraphics[width=0.8\linewidth]{figures/turbulence.jpg}\\
+      {\teeny Image attribution: \url{https://www.advancedsciencenews.com/wp-content/uploads/2023/07/swirl-g52ac5d4ac_1280.jpg}}
+    \end{column}
+    \begin{column}{0.4\linewidth}
+      \begin{itemize}
+        \item Hard to model
+        \item Not well understood
+        \item But can be predicted to a degree!
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Project Goals}
+  \begin{itemize}
+    \item Simulate turbulence in HII regions
+    \item Test different turbulence parameters
+    \item Compare to reality
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Results}
+  \centering
+  \includegraphics[width=0.5\linewidth]{figures/blurringcomp.png}\\
+  \includegraphics[width=0.25\linewidth]{run_s1_md3.5rrl_150.0_M1.png}
+  \includegraphics[width=0.25\linewidth]{run_s1_md3.5rrl_450.0_M1.png}
+  {\teeny\\ Comparing the effects of a higher resolution on the first moment map.}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Results}
+  \begin{columns}
+    \begin{column}{0.5\linewidth}
+      \begin{itemize}
+        \item Similarity to reality
+          \begin{itemize}
+            \item Turbulence looking like angular momentum
+            \item Similar velocity scales
+          \end{itemize}
+      \end{itemize}
+    \end{column}
+      \includegraphics[width=0.25\linewidth]{figures/smallrealVLSR.png}
+      \includegraphics[width=0.25\linewidth]{run_s1_md3.5rrl_150.0_M1.png}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Future Work}
+  \begin{columns}
+    \begin{column}{0.5\linewidth}
+      \includegraphics[width=0.7\linewidth]{figures/lagslides.png}
+    \end{column}
+    \begin{column}{0.5\linewidth}
+      \begin{itemize}
+        \item Comparing with more radio data
+        \item Develop new analyses
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{\begin{beamercolorbox}[wd=\paperwidth,ht=4.5ex,dp=1.125ex,leftskip=.3cm,rightskip=.3cm]{def}
+  \end{beamercolorbox}}
+  \vskip0pt%
+}
+
+\begin{frame}[noframenumbering]
+  \frametitle{Pipeline}
+  \begin{itemize}
+    \item Generate and truncate turbustat data
+      \begin{itemize}
+        \item Creates cubes to represent density and velocity in 3d space
+      \end{itemize}
+    \item Calculate emission measure for each physical "voxel" of HII region
+    \item Calculate RRL strength for each pixel
+      \begin{itemize}
+        \item Gaussian treating velocity cube as line centers
+        \item Add free-free emission afterwards
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \frametitle{Resolution Dependance}
+  \centering
+  \includegraphics[width=0.6\linewidth]{figures/vel_histogram.png}
+  {\teeny\\ Demonstrating that the resolution dependance is negligible past 300 pixels.}
+\end{frame}
+
+\end{document}
