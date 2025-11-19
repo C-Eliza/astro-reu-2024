@@ -43,26 +43,46 @@ def gen_turbulence(
         velocity :: 3-D array of scalars (with units)
             Radial velocity field
     """
-    # ionized gas sound speed (from https://doi.org/10.1093/mnras/stad2195)
-    c_s = 11.0 * u.km / u.s
-
-    # 1D turbulent velocity dispersion
-    v_turb = mach_number * c_s / np.sqrt(3.0)
-
-    # logarithmic density (density / mean_density) dispersion
-    log_n_turb = np.sqrt(np.log(1 + driving_parameter**2 * mach_number**2))
+    log_n_turb, v_turb = make_turb_params(mach_number, mean_density, driving_parameter)
 
     # generate cubes
-    log_density_frac = make_3dfield(
-        imsize, powerlaw=11.0 / 3, amp=log_n_turb, randomseed=seed
-    )
-    density = np.exp(np.log(mean_density / u.cm**-3) + log_density_frac) * u.cm**-3
+    log_dens_frac = make_dens_frac(imsize, seed)
+    vel_frac = make_vel_frac(imsize, seed)
 
-    velocity = make_3dfield(
-        imsize, powerlaw=5.0 / 3.0, amp=v_turb.to("km/s").value, randomseed=seed + 1
-    )
+    density, velocity = apply_turb_params(log_dens_frac, vel_frac, log_n_turb, v_turb, mean_density)
 
-    return density, velocity * u.km / u.s
+    return density, velocity
+
+def apply_turb_params(
+        log_dens_frac,
+        vel_frac,
+        log_n_turb,
+        v_turb,
+        mean_density
+        ):
+
+    density = np.exp(np.log(mean_density / u.cm**-3) + log_dens_frac * log_n_turb) * u.cm**-3
+    velocity = vel_frac * v_turb.to("km/s").value * u.km / u.s
+    return density, velocity
+
+def make_turb_params(
+        mach_number=1.0,
+        mean_density=200.0 / u.cm**3,
+        driving_parameter=0.75,
+        ):
+
+    c_s = 11.0 * u.km / u.s
+
+    v_turb = mach_number * c_s / np.sqrt(3.0)
+
+    log_n_turb = np.sqrt(np.log(1 + driving_parameter**2 * mach_number**2))
+    return log_n_turb, v_turb
+
+def make_dens_frac(imsize, seed = 1234):
+    return make_3dfield(imsize, powerlaw=11.0 / 3, randomseed=seed)
+
+def make_vel_frac(imsize, seed = 1234):
+    return make_3dfield(imsize, powerlaw=5.0 / 3.0, randomseed=seed + 1)
 
 def save_turbulence(density, velocity):
     """
