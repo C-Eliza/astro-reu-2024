@@ -10,7 +10,7 @@ import astropy.constants as c
 import argparse
 import astropy.io.fits as fits
 from HIIsim import Simulation, HIIRegion, split_observations_no_save
-from gen_turbulence import gen_turbulence
+from gen_turbulence import *
 from turbustat.statistics import PowerSpectrum
 import bettermoments as bm
 
@@ -30,16 +30,23 @@ def main(
 
     for s in seed:
         print("Seed: "+str(s))
+        dens_frac = make_dens_frac(impix, s)
+        vel_frac = make_vel_frac(impix, s)
         for m in mach_number:
             print("Mach: "+str(m))
             # Synthetic observation
-            dens1, vel1 = gen_turbulence(
-                impix,
-                mean_density=mean_density * u.cm**-3,
-                seed=s,
+            log_n_turb, vel_turb = make_turb_params(
                 mach_number=m,
                 driving_parameter=driving_parameter,
             )
+
+            dens1, vel1 = apply_turb_params(
+                    dens_frac,
+                    vel_frac,
+                    log_n_turb,
+                    vel_turb,
+                    mean_density*u.cm**-3
+                    )
 
             if constant_density:
                 dens1 = mean_density * np.ones(np.shape(dens1)) * u.cm**-3

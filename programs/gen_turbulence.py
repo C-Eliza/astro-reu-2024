@@ -43,7 +43,7 @@ def gen_turbulence(
         velocity :: 3-D array of scalars (with units)
             Radial velocity field
     """
-    log_n_turb, v_turb = make_turb_params(mach_number, mean_density, driving_parameter)
+    log_n_turb, v_turb = make_turb_params(mach_number, driving_parameter)
 
     # generate cubes
     log_dens_frac = make_dens_frac(imsize, seed)
@@ -67,7 +67,6 @@ def apply_turb_params(
 
 def make_turb_params(
         mach_number=1.0,
-        mean_density=200.0 / u.cm**3,
         driving_parameter=0.75,
         ):
 
