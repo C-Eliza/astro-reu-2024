@@ -5,7 +5,7 @@
 *Programming:*
 - [ ] Add a README
 - [ ] Add multi-processer instructions (w/ keep raw data)
-- [ ] Preserve turbulence maps
+- [X] Preserve turbulence maps
 - [ ] Create seperate moment map program to process raw data files
 - [ ] Create seperate data analysis program to process raw+moments
 - [ ] Refine figures for data analysis program
