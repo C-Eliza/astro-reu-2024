@@ -28,11 +28,18 @@ def main(fname,cubemode):
     # plot data
     fig = plt.figure()
     ax = plt.subplot(projection=wcs.celestial)
+    if "M1" in fname or "vlsr" in fname:
+        colormap = "cividis"
+    elif "M2" in fname or "fwhm" in fname:
+        colormap = "viridis"
+    else:
+        colormap = "magma"
+
     cax = ax.imshow(
         np.abs(data) if cubemode else data,
         origin='lower',
         interpolation='none',
-        cmap='inferno',
+        cmap=colormap,
         norm = LogNorm(vmin=0.1,vmax=vmax) if cubemode else Normalize(vmin=vmin,vmax=vmax)
     )
     ax.coords[0].set_major_formatter("hh:mm:ss")

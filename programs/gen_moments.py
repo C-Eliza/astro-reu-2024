@@ -25,7 +25,8 @@ def main(
         fnamebase,
         constant_density,
         use_GPU,
-        seed
+        seed,
+        fraud_factor
         ):
 
     for s in seed:
@@ -68,7 +69,7 @@ def main(
             sim_hdul = obs1.simulate(region1, use_GPU=use_GPU, rrl_only = True, no_save=True,filename="",quiet=True)
             for bf in beam_fwhm:
                 filename = "fits/"+fnamebase+"_s"+str(s)+"_md"+str(m)+"rrl_"+str(bf)
-                analyze(sim_hdul, obs1, bf*u.arcsec, noise*u.K, filename)
+                analyze(sim_hdul, obs1, bf*u.arcsec, noise*u.K, filename, fraud_factor)
 
 def save_moment(moment, dmoment, prev_header, filename, method):
     '''
@@ -124,7 +125,7 @@ def save_moment(moment, dmoment, prev_header, filename, method):
         hdul[0].data = dmoment.to("km/s/K").value
         hdul.writeto(filename+"_dM2.fits",overwrite=True)
 
-def analyze(sim_hdul, simul, beam_fwhm, noise, filename):
+def analyze(sim_hdul, simul, beam_fwhm, noise, filename, fraud_factor):
 
     '''
     Takes in simulated and convoluted data, creates moment maps for them,
@@ -156,7 +157,11 @@ def analyze(sim_hdul, simul, beam_fwhm, noise, filename):
     moment2 /= u.K
     dmoment2 /= u.K
 
-    moment0[moment0<3*rms*simul.nchan*u.K*u.km/u.s] = np.nan
+    if fraud_factor!=-999:
+        moment0[moment0<np.max(moment0)/fraud_factor] = np.nan
+
+    else:
+        moment0[moment0<3*rms*simul.nchan*u.K*u.km/u.s] = np.nan
     moment1[np.isnan(moment0)] = np.nan
     moment2[np.isnan(moment0)] = np.nan
     dmoment0[np.isnan(moment0)] = np.nan
@@ -227,6 +232,12 @@ if __name__ == "__main__":
         type=float,
         default=0.01,
         help="Noise (K)",
+    )
+    parser.add_argument(
+        "--fraud_factor",
+        type=float,
+        default=-999,
+        help="Set cutoff of moments to the peak LOS over this number",
     )
     parser.add_argument(
         "--fnamebase",

@@ -12,9 +12,9 @@ import argparse
 from turbustat.statistics import PowerSpectrum
 import matplotlib.pyplot as plt
 
-def plotStats(array, title):
+def plotStats(array, title,colormap):
 
-    plt.imshow(array,origin='lower',extent=(0.25,5.25,50,650),aspect='auto')
+    plt.imshow(array,origin='lower',extent=(0.25,5.25,0,600),aspect='auto')
     plt.title(title)
     plt.xlabel("Mach number times driving number")
     plt.ylabel("Resolution (arcsecs)")
@@ -23,9 +23,9 @@ def plotStats(array, title):
 
 def main(filebase):
 
-    seeds=['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19']
-    mds=['0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0']
-    reses=['100.0','200.0','300.0','400.0','500.0','600.0']
+    seeds=['1','2','3','4','5']
+    mds=['1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0']
+    reses=['50.0','150.0','250.0','350.0','450.0','550.0']
 
     #Prepare histogram
     pspecslope1=np.zeros((len(reses),len(mds)))
@@ -55,8 +55,8 @@ def main(filebase):
     hdul = fits.open(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M2.fits')
     pspec1 = PowerSpectrum.load_results(filebase+'_s'+seeds[0]+'_md'+mds[int(len(mds)/2)]+'rrl_'+reses[int(len(reses)/2)]+'_M1.pkl')
     pspec1.plot_fit()
-    plotStats(pspecslope1,"Average 1D Power Slope")
-    plotStats(meanM2,"Average of Moment 2")
+    plotStats(pspecslope1,"Average 1D Power Slope","vicidis")
+    plotStats(meanM2,"Average of Moment 2","viridis")
     plotStats(mediandM2,"Median Uncertainty of Moment 2")
     plotStats(stdmeanM2,"Standard Deviation of Moment 2 Seeds")
 
