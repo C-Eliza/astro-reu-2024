@@ -79,9 +79,9 @@ def main(fname,cubemode):
     # N.B. the values for "fraction" and "pad" are "magic numbers":
     # they "always work" in my experience
     cbar = fig.colorbar(cax, fraction=0.046, pad=0.04)
-    if "M1" in fname: 
+    if "M1" in fname or "vlsr" in fname: 
         cbar.set_label(r"$V_{\rm LSR}$ (km s$^{-1}$)")
-    elif "M2" in fname:
+    elif "M2" in fname or "fwhm" in fname:
         cbar.set_label(r"$\Delta V$ (km s$^{-1}$)")
     else:
         cbar.set_label(r"$T_b$ (Absolute K)")
