@@ -178,6 +178,7 @@ def analyze(sim_hdul, simul, beam_fwhm, noise, filename, fraud_factor):
     pspec2 = PowerSpectrum(moment2.to("km/s/K").value, header=obs_hdul[0].header)
     pspec0.run(xunit=u.arcsec**-1,high_cut=1/(hpbw*u.arcsec))
     pspec1.run(xunit=u.arcsec**-1,high_cut=1/(hpbw*u.arcsec))
+    pspec1.plot_fit()
     pspec2.run(xunit=u.arcsec**-1,high_cut=1/(hpbw*u.arcsec))
     pspec0.save_results(filename+'_M0')
     pspec1.save_results(filename+'_M1')

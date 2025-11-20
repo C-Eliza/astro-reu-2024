@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 def plotStats(array, title,colormap):
 
-    plt.imshow(array,origin='lower',extent=(0.25,5.25,0,600),aspect='auto')
+    plt.imshow(array,origin='lower',extent=(0.25,5.25,0,600),aspect='auto',cmap = colormap)
     plt.title(title)
     plt.xlabel("Mach number times driving number")
     plt.ylabel("Resolution (arcsecs)")
@@ -29,6 +29,7 @@ def main(filebase):
 
     #Prepare histogram
     pspecslope1=np.zeros((len(reses),len(mds)))
+    pspecslope2=np.zeros((len(reses),len(mds)))
     allmeanM2=np.zeros((len(reses),len(mds),len(seeds)))
     mediandM2=np.zeros((len(reses),len(mds)))
 
@@ -37,9 +38,10 @@ def main(filebase):
         for m in range(len(mds)):
             for r in range(len(reses)):
                 pspec1 = PowerSpectrum.load_results(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M1.pkl')
-                #pspec2 = PowerSpectrum.load_results(filebase+'_s'+seed+'_md'+md+'rrl_'+res+'M2.pkl')
+                pspec2 = PowerSpectrum.load_results(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M2.pkl')
                 
                 pspecslope1[r][m] += pspec1.slope / len(seeds)
+                pspecslope2[r][m] += pspec2.slope / len(seeds)
                 hdul = fits.open(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M2.fits')
                 allmeanM2[r][m][s] = np.nanmean(hdul[0].data)
                 hdul.close()
@@ -53,12 +55,13 @@ def main(filebase):
     stdmeanM2 = np.std(allmeanM2,axis=2)
     #Plot it
     hdul = fits.open(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M2.fits')
-    pspec1 = PowerSpectrum.load_results(filebase+'_s'+seeds[0]+'_md'+mds[int(len(mds)/2)]+'rrl_'+reses[int(len(reses)/2)]+'_M1.pkl')
+    pspec1 = PowerSpectrum.load_results(filebase+'_s'+seeds[0]+'_md'+mds[int(len(mds)*3/4)]+'rrl_'+reses[int(len(reses)*1/4)]+'_M1.pkl')
     pspec1.plot_fit()
-    plotStats(pspecslope1,"Average 1D Power Slope","vicidis")
+    plotStats(pspecslope1,"Average 1D Power Slope","cividis")
+    plotStats(pspecslope2,"Average 2D Power Slope","viridis")
     plotStats(meanM2,"Average of Moment 2","viridis")
-    plotStats(mediandM2,"Median Uncertainty of Moment 2")
-    plotStats(stdmeanM2,"Standard Deviation of Moment 2 Seeds")
+    plotStats(mediandM2,"Median Uncertainty of Moment 2","viridis")
+    plotStats(stdmeanM2,"Standard Deviation of Moment 2 Seeds","viridis")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
