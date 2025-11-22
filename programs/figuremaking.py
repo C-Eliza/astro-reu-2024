@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 def plotStats(array, title,colormap):
 
-    plt.imshow(array,origin='lower',extent=(0.25,5.25,0,600),aspect='auto',cmap = colormap)
+    plt.imshow(array,origin='lower',extent=(1.25,5.25,0,600),aspect='auto',cmap = colormap)
     plt.title(title)
     plt.xlabel("Mach number times driving number")
     plt.ylabel("Resolution (arcsecs)")
@@ -57,8 +57,8 @@ def main(filebase):
     hdul = fits.open(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M2.fits')
     pspec1 = PowerSpectrum.load_results(filebase+'_s'+seeds[0]+'_md'+mds[int(len(mds)*3/4)]+'rrl_'+reses[int(len(reses)*1/4)]+'_M1.pkl')
     pspec1.plot_fit()
-    plotStats(pspecslope1,"Average 1D Power Slope","cividis")
-    plotStats(pspecslope2,"Average 2D Power Slope","viridis")
+    plotStats(pspecslope1,"Average Power Slope of Moment 1","cividis")
+    plotStats(pspecslope2,"Average Power Slope of Moment 2","viridis")
     plotStats(meanM2,"Average of Moment 2","viridis")
     plotStats(mediandM2,"Median Uncertainty of Moment 2","viridis")
     plotStats(stdmeanM2,"Standard Deviation of Moment 2 Seeds","viridis")
