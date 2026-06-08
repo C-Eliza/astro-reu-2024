@@ -30,6 +30,7 @@ def main(filebase):
     #Prepare histogram
     pspecslope1=np.zeros((len(reses),len(mds)))
     pspecslope2=np.zeros((len(reses),len(mds)))
+    allmeanM1=np.zeros((len(reses),len(mds),len(seeds)))
     allmeanM2=np.zeros((len(reses),len(mds),len(seeds)))
     mediandM2=np.zeros((len(reses),len(mds)))
 
@@ -44,6 +45,8 @@ def main(filebase):
                 pspecslope2[r][m] += pspec2.slope / len(seeds)
                 hdul = fits.open(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M2.fits')
                 allmeanM2[r][m][s] = np.nanmean(hdul[0].data)
+                hdul = fits.open(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_M1.fits')
+                allmeanM1[r][m][s] = np.nanmean(hdul[0].data)
                 hdul.close()
 
                 hdul = fits.open(filebase+'_s'+seeds[s]+'_md'+mds[m]+'rrl_'+reses[r]+'_dM2.fits')
@@ -51,6 +54,8 @@ def main(filebase):
                 hdul.close()
 
                 
+    meanM1 = np.mean(allmeanM1,axis=2)
+    stdmeanM1 = np.std(allmeanM1,axis=2)
     meanM2 = np.mean(allmeanM2,axis=2)
     stdmeanM2 = np.std(allmeanM2,axis=2)
     #Plot it
@@ -59,6 +64,8 @@ def main(filebase):
     pspec1.plot_fit()
     plotStats(pspecslope1,"Average Power Slope of Moment 1","cividis")
     plotStats(pspecslope2,"Average Power Slope of Moment 2","viridis")
+    plotStats(meanM1,"Average of Moment 1","cividis")
+    plotStats(stdmeanM1,"Standard Deviation of Moment 1 Seeds","cividis")
     plotStats(meanM2,"Average of Moment 2","viridis")
     plotStats(mediandM2,"Median Uncertainty of Moment 2","viridis")
     plotStats(stdmeanM2,"Standard Deviation of Moment 2 Seeds","viridis")
