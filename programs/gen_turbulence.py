@@ -61,8 +61,8 @@ def apply_turb_params(
         mean_density
         ):
     #wikipedia for rescale
-    density_scale = np.log(mean_density**2 / np.sqrt(mean_density**2 + log_n_turb**2))
-    density = np.exp(np.log(density_scale / u.cm**-3) + log_dens_frac * log_n_turb) * u.cm**-3
+    density_scale = np.log((mean_density*u.cm**3)**2 / np.sqrt((mean_density*u.cm**3)**2 + log_n_turb**2))
+    density = np.exp(density_scale + log_dens_frac * log_n_turb) * u.cm**-3
     velocity = vel_frac * v_turb.to("km/s").value * u.km / u.s
     return density, velocity
 

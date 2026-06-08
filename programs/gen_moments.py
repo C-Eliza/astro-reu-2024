@@ -146,14 +146,17 @@ def analyze(sim_hdul, simul, beam_fwhm, noise, filename, fraud_factor):
     obs_hdul = split_observations_no_save(sim_hdul, beam_fwhm, noise)
 
     hpbw = obs_hdul[0].header['BMAJ'] * 3600
-    rms = bm.estimate_RMS(data=obs_hdul[0].data, N=5)
+    smooth_data = bm.smooth_data(obs_hdul[0].data, smooth = 3)
+    threshold_mask = bm.get_threshold_mask(data=smooth_data,clip=3.0)
+    data = smooth_data*threshold_mask
+    rms = bm.estimate_RMS(data=smooth_data, N=5)
     velax = simul.velo_axis
 
-    moment0, dmoment0 = bm.collapse_zeroth(velax=velax,rms=rms,data=obs_hdul[0].data)
+    moment0, dmoment0 = bm.collapse_zeroth(velax=velax,rms=rms,data=data)
     moment0 *= u.K
     dmoment0 *= u.K
-    moment1, dmoment1 = bm.collapse_first(velax=velax,rms=rms,data=obs_hdul[0].data)
-    moment2, dmoment2 = bm.collapse_second(velax=velax,rms=rms,data=obs_hdul[0].data)
+    moment1, dmoment1 = bm.collapse_first(velax=velax,rms=rms,data=data)
+    moment2, dmoment2 = bm.collapse_second(velax=velax,rms=rms,data=data)
     moment2 /= u.K
     dmoment2 /= u.K
 
@@ -162,11 +165,6 @@ def analyze(sim_hdul, simul, beam_fwhm, noise, filename, fraud_factor):
 
     else:
         moment0[moment0<3*rms*simul.nchan*u.K*u.km/u.s] = np.nan
-    moment1[np.isnan(moment0)] = np.nan
-    moment2[np.isnan(moment0)] = np.nan
-    dmoment0[np.isnan(moment0)] = np.nan
-    dmoment1[np.isnan(moment0)] = np.nan
-    dmoment2[np.isnan(moment0)] = np.nan
 
     save_moment(moment0,dmoment0,obs_hdul[0].header,filename,"zeroth")
     save_moment(moment1,dmoment1,obs_hdul[0].header,filename,"first")
