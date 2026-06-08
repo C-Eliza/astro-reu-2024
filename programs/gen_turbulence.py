@@ -23,7 +23,7 @@ def gen_turbulence(
     not correlated (see https://doi.org/10.1093/mnras/stad2195), assuming the velocity
     is described by https://doi.org/10.1093/mnras/stad1631, the density 
     https://arxiv.org/pdf/1206.4524 and assuming Kolmogorov turbulence (power spectrum 
-    slope = 11/3 for density and 5/3 for velocity).
+    slope = 11/3 for density and 11/3 for velocity due to squared-quantity law).
 
     Inputs:
         imsize :: integer
@@ -81,7 +81,7 @@ def make_dens_frac(imsize, seed = 1234):
     return make_3dfield(imsize, powerlaw=11.0 / 3, randomseed=seed)
 
 def make_vel_frac(imsize, seed = 1234):
-    return make_3dfield(imsize, powerlaw=5.0 / 3.0, randomseed=seed + 1)
+    return make_3dfield(imsize, powerlaw=11.0 / 3.0, randomseed=seed + 1)
 
 def save_turbulence(density, velocity):
     """
