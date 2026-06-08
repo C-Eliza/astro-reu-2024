@@ -89,7 +89,7 @@ def save_moment(moment, dmoment, prev_header, filename, method):
     hdul = fits.HDUList()
     if(method=="zeroth"):
         hdul.append(fits.PrimaryHDU(moment.to(u.K*u.km/u.s).value,prev_header))
-        hdul[0].header["CRVAL3"] = None
+        del hdul[0].header["CRVAL3"]
         del hdul[0].header["CDELT3"]
         del hdul[0].header["CTYPE3"]
         del hdul[0].header["CRPIX3"]

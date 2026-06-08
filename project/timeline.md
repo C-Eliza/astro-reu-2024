@@ -16,6 +16,7 @@
 
 *Writing:*
 - [ ] Flesh out introduction further
+    - [ ] Add an example of the power spectrum analysis that we do
 - [ ] Complete simulation section, referring back to programming
 - [ ] Complete methods section, referring back to data analysis
 - [ ] Complete discussion section, referring to readings and data analysis

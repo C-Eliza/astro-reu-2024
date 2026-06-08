@@ -29,7 +29,7 @@ pkgs.mkShell{
               oldest-supported-numpy
               extension-helpers
               cython
-              setuptools_scm
+              setuptools-scm
             ];
             propagatedBuildInputs = [
               astropy
