@@ -613,6 +613,9 @@ def split_observations_no_save(sim_hdul, beam_fwhm, noise):
 def main(
     impix=100,
     nchan=200,
+    radius,
+    distance,
+    pix_size=-999,
     mean_density=1000.0,
     mach_number=5.0,
     driving_parameter=0.75,
@@ -642,7 +645,6 @@ def main(
         distance=0.25 * u.kpc,
     )
     pixel_size = 50 * u.arcsec / (impix / 50) / (region1.distance / 0.25 / u.kpc)
-    print(f"pixel_size: {pixel_size}")
     obs1 = Simulation(
         nchan=nchan,
         npix=dens1.shape[0],
@@ -672,6 +674,24 @@ if __name__ == "__main__":
         type=int,
         default=200,
         help="Number of frequency channels",
+    )
+    parser.add_argument(
+        "--radius",
+        type=float,
+        default=1,
+        help="Radius of HII region (pc)",
+    )
+    parser.add_argument(
+        "--distance",
+        type=float,
+        default=1,
+        help="Distance from HII region (kpc)",
+    )
+    parser.add_argument(
+        "--pixel_size",
+        type=float,
+        default=-999, # -999 means "fit to screen"
+        help="Size of each pixel (arcsec)",
     )
     parser.add_argument(
         "--mean_density",

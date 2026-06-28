@@ -17,6 +17,9 @@ import bettermoments as bm
 def main(
         impix,
         nchan,
+        radius,
+        distance,
+        pixel_size,
         mean_density,
         mach_number,
         driving_parameter,
@@ -26,7 +29,6 @@ def main(
         constant_density,
         use_GPU,
         seed,
-        fraud_factor
         ):
 
     for s in seed:
@@ -47,7 +49,7 @@ def main(
                     log_n_turb,
                     vel_turb,
                     mean_density*u.cm**-3
-                    )
+            )
 
             if constant_density:
                 dens1 = mean_density * np.ones(np.shape(dens1)) * u.cm**-3
@@ -55,9 +57,11 @@ def main(
             region1 = HIIRegion(
                 electron_density=dens1,
                 velocity=vel1,
-                distance=0.25 * u.kpc,
+                distance=distance * u.kpc,
             )
-            pixel_size = 50 * u.arcsec / (impix / 50) / (region1.distance / 0.25 / u.kpc)
+            if np.isclose(pixel_size,-999):
+                pixel_size = 50 * u.arcsec / (impix / 50) / (region1.distance / 0.25 / u.kpc) 
+            
             obs1 = Simulation(
                 nchan=nchan,
                 npix=dens1.shape[0],
@@ -66,10 +70,17 @@ def main(
                 channel_size=40 * u.kHz,
             )
                                                                                  
-            sim_hdul = obs1.simulate(region1, use_GPU=use_GPU, rrl_only = True, no_save=True,filename="",quiet=True)
+            sim_hdul = obs1.simulate(
+                    region1, 
+                    use_GPU=use_GPU, 
+                    rrl_only = True, 
+                    no_save=True,
+                    filename="",
+                    quiet=True
+            )
             for bf in beam_fwhm:
-                filename = "fits/"+fnamebase+"_s"+str(s)+"_md"+str(m)+"rrl_"+str(bf)
-                analyze(sim_hdul, obs1, bf*u.arcsec, noise*u.K, filename, fraud_factor)
+                filename = "fits/"+fnamebase+"_s"+str(s)+"_md"+str(m)+"_bw"+str(bf)+"_rad"+str(radius)
+                analyze(sim_hdul, obs1, bf*u.arcsec, noise*u.K, filename)
 
 def save_moment(moment, dmoment, prev_header, filename, method):
     '''
@@ -125,7 +136,7 @@ def save_moment(moment, dmoment, prev_header, filename, method):
         hdul[0].data = dmoment.to("km/s/K").value
         hdul.writeto(filename+"_dM2.fits",overwrite=True)
 
-def analyze(sim_hdul, simul, beam_fwhm, noise, filename, fraud_factor):
+def analyze(sim_hdul, simul, beam_fwhm, noise, filename):
 
     '''
     Takes in simulated and convoluted data, creates moment maps for them,
@@ -160,12 +171,6 @@ def analyze(sim_hdul, simul, beam_fwhm, noise, filename, fraud_factor):
     moment2 /= u.K
     dmoment2 /= u.K
 
-    if fraud_factor!=-999:
-        moment0[moment0<np.max(moment0)/fraud_factor] = np.nan
-
-    else:
-        moment0[moment0<3*rms*simul.nchan*u.K*u.km/u.s] = np.nan
-
     save_moment(moment0,dmoment0,obs_hdul[0].header,filename,"zeroth")
     save_moment(moment1,dmoment1,obs_hdul[0].header,filename,"first")
     save_moment(moment2,dmoment2,obs_hdul[0].header,filename,"second")
@@ -176,7 +181,6 @@ def analyze(sim_hdul, simul, beam_fwhm, noise, filename, fraud_factor):
     pspec2 = PowerSpectrum(moment2.to("km/s/K").value, header=obs_hdul[0].header)
     pspec0.run(xunit=u.arcsec**-1,high_cut=1/(hpbw*u.arcsec))
     pspec1.run(xunit=u.arcsec**-1,high_cut=1/(hpbw*u.arcsec))
-    pspec1.plot_fit()
     pspec2.run(xunit=u.arcsec**-1,high_cut=1/(hpbw*u.arcsec))
     pspec0.save_results(filename+'_M0')
     pspec1.save_results(filename+'_M1')
@@ -199,6 +203,25 @@ if __name__ == "__main__":
         type=int,
         default=256,
         help="Number of frequency channels",
+    )
+    parser.add_argument(
+        "--radius",
+        type=float,
+        nargs="+",
+        default=[1],
+        help="Radius of HII region (pc)",
+    )
+    parser.add_argument(
+        "--distance",
+        type=float,
+        default=-999, # -999 means "fit to screen"
+        help="Distance from HII region (Mpc)",
+    )
+    parser.add_argument(
+        "--pixel_size",
+        type=float,
+        default=1,
+        help="Size of each pixel (arcsec)",
     )
     parser.add_argument(
         "--mean_density",
@@ -231,12 +254,6 @@ if __name__ == "__main__":
         type=float,
         default=0.01,
         help="Noise (K)",
-    )
-    parser.add_argument(
-        "--fraud_factor",
-        type=float,
-        default=-999,
-        help="Set cutoff of moments to the peak LOS over this number",
     )
     parser.add_argument(
         "--fnamebase",
