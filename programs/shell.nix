@@ -87,6 +87,7 @@ pkgs.mkShell{
         pip
         matplotlib
         turbustat
+        bettermoments
       ]; in pkgs.python3.withPackages my-python-packages
     )      
   ];
